@@ -1,0 +1,3 @@
+rootProject.name='LaTest'
+include ':app'
+include ':latest'
