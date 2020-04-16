@@ -9,12 +9,10 @@ uiDevice.apply {
     textClick("Get Started")
     textClick("Log In", 2000)
 
-    byDescription("Enter your email").text = "test562@remitbee.com"
-    byDescription("Enter your password").text = "Qwertyuiop"
+    byDescription("Enter your email").text = "test123@email.com"
+    byDescription("Enter your password").text = "123456789"
 
     descriptionClick("Login Button")
-
-    textClick("USE MY PASSWORD", 2500)
 }
 ```
 
