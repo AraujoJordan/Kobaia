@@ -9,6 +9,8 @@ import java.util.regex.Pattern
 
 fun uiDevice() = UiDevice.getInstance(getInstrumentation())
 
+var defaultWaitingTime = 2000L
+
 /**
  * Get UIObject2 device by Text that appear on screen.
  * This method also wait for it for some milliseconds
@@ -17,7 +19,7 @@ fun uiDevice() = UiDevice.getInstance(getInstrumentation())
  */
 fun UiDevice.byText(
     text: String,
-    wait: Long = 200
+    wait: Long = defaultWaitingTime
 ) = wait(Until.findObject(By.text(text)), wait)
 
 /**
@@ -28,7 +30,7 @@ fun UiDevice.byText(
  */
 fun UiDevice.byText(
     pattern: Pattern,
-    wait: Long = 200
+    wait: Long = defaultWaitingTime
 ) = wait(Until.findObject(By.text(pattern)), wait)
 
 /**
@@ -39,7 +41,7 @@ fun UiDevice.byText(
  */
 fun UiDevice.textExists(
     text: String,
-    wait: Long = 200
+    wait: Long = defaultWaitingTime
 ) = try {
     wait(Until.findObjects(By.text(text)), wait).size > 0
 } catch (err: Exception) {
@@ -54,7 +56,7 @@ fun UiDevice.textExists(
  */
 fun UiDevice.textExists(
     pattern: Pattern,
-    wait: Long = 200
+    wait: Long = defaultWaitingTime
 ) = try {
     wait(Until.findObjects(By.text(pattern)), wait).size > 0
 } catch (err: Exception) {
@@ -69,7 +71,7 @@ fun UiDevice.textExists(
  */
 fun UiDevice.containsText(
     text: String,
-    wait: Long = 200
+    wait: Long = defaultWaitingTime
 ) = try {
     wait(Until.findObjects(By.textContains(text)), wait).size > 0
 } catch (err: Exception) {
@@ -84,7 +86,7 @@ fun UiDevice.containsText(
  */
 fun UiDevice.descriptionExist(
     text: String,
-    wait: Long = 200
+    wait: Long = defaultWaitingTime
 ) = try {
     wait(Until.findObjects(By.desc(text)), wait).size > 0
 } catch (err: Exception) {
@@ -99,7 +101,7 @@ fun UiDevice.descriptionExist(
  */
 fun UiDevice.descriptionExist(
     pattern: Pattern,
-    wait: Long = 200
+    wait: Long = defaultWaitingTime
 ) = try {
     wait(Until.findObjects(By.desc(pattern)), wait).size > 0
 } catch (err: Exception) {
@@ -114,7 +116,7 @@ fun UiDevice.descriptionExist(
  */
 fun UiDevice.byDescription(
     pattern: Pattern,
-    wait: Long = 200
+    wait: Long = defaultWaitingTime
 ) = wait(Until.findObject(By.desc(pattern)), wait)
 
 /**
@@ -125,7 +127,7 @@ fun UiDevice.byDescription(
  */
 fun UiDevice.byDescription(
     text: String,
-    wait: Long = 200
+    wait: Long = defaultWaitingTime
 ) = wait(Until.findObject(By.desc(text)), wait)
 
 
@@ -137,7 +139,7 @@ fun UiDevice.byDescription(
  */
 fun UiDevice.textClick(
     text: String,
-    wait: Long = 200
+    wait: Long = defaultWaitingTime
 ) {
     val obj = wait(Until.findObject(By.text(text)), wait)
     try {
@@ -155,7 +157,7 @@ fun UiDevice.textClick(
  */
 fun UiDevice.textClick(
     pattern: Pattern,
-    wait: Long = 200
+    wait: Long = defaultWaitingTime
 ) {
     val obj = wait(Until.findObject(By.text(pattern)), wait)
     try {
@@ -175,7 +177,7 @@ fun UiDevice.textClick(
  */
 fun UiDevice.descriptionClick(
     text: String,
-    wait: Long = 200
+    wait: Long = defaultWaitingTime
 ) {
     val obj = wait(Until.findObject(By.desc(text)), wait)
     try {
@@ -194,7 +196,7 @@ fun UiDevice.descriptionClick(
  */
 fun UiDevice.descriptionClick(
     pattern: Pattern,
-    wait: Long = 200
+    wait: Long = defaultWaitingTime
 ) {
     val obj = wait(Until.findObject(By.desc(pattern)), wait)
     try {
@@ -215,7 +217,7 @@ fun UiDevice.descriptionClick(
 fun UiDevice.slowingTypeNumberInKeyboard(
     fieldDescription: String,
     text: String,
-    wait: Long = 200
+    wait: Long = defaultWaitingTime
 ) {
     val field = wait(Until.findObject(By.desc(fieldDescription)), wait)
     field.click()
@@ -244,7 +246,7 @@ fun UiDevice.scrollUntilFindText(
             scrollXStartPosition,
             scrollYStartPosition,
             scrollXStartPosition,
-            scrollYStartPosition + scrollPixels,
+            scrollYStartPosition - scrollPixels,
             15
         )
         waitForIdle(600)
@@ -270,11 +272,18 @@ fun UiDevice.scrollUntilFindDescription(
     text: String,
     maximumScrolls: Int = 5,
     scrollXStartPosition: Int = 500,
-    scrollYStartPosition: Int = 1500
+    scrollYStartPosition: Int = 1500,
+    scrollPixels: Int = 300
 ): UiObject2? {
     var scrollAttempts = 0
     while (!descriptionExist(text, 25L)) {
-        swipe(scrollXStartPosition, scrollYStartPosition, 500, 800, 15)
+        swipe(
+            scrollXStartPosition,
+            scrollYStartPosition,
+            scrollXStartPosition,
+            scrollYStartPosition - scrollPixels,
+            15
+        )
         waitForIdle(600)
         scrollAttempts++
         if (scrollAttempts >= maximumScrolls) {
