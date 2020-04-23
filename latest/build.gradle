@@ -11,9 +11,12 @@ android {
         targetSdkVersion 29
         versionCode 1
         versionName "1.0"
-
+        multiDexEnabled true
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles 'consumer-rules.pro'
+    }
+    lintOptions {
+        disable 'InvalidPackage'
     }
 
     buildTypes {
@@ -30,4 +33,10 @@ dependencies {
     api 'com.android.support.test:rules:1.0.2'
     api 'androidx.test:orchestrator:1.2.0'
     api 'androidx.test.uiautomator:uiautomator:2.2.0'
+}
+
+// Exclude Kotlin files from Javadoc due to an error generating docs from Kotlin files.
+// More info: https://github.com/novoda/bintray-release/issues/71
+tasks.withType(Javadoc) {
+    excludes = ['**/*.kt']
 }
