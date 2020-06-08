@@ -5,11 +5,16 @@ import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
+import junit.framework.Assert.assertTrue
 import java.util.regex.Pattern
 
 fun uiDevice() = UiDevice.getInstance(getInstrumentation())
 
-var defaultWaitingTime = 2000L
+// According to Forrester Research and Aberdeen Group, consumers abandon a website/app after
+// waiting 3 seconds for a page to load. Adding that to the enter/exit loading of 500ms, we have
+// 4 seconds as out threshold of timeout for a good UX.
+//
+var defaultWaitingTime = 4000L
 
 /**
  * Get UIObject2 device by Text that appear on screen.
@@ -43,7 +48,7 @@ fun UiDevice.textExists(
     text: String,
     wait: Long = defaultWaitingTime
 ) = try {
-    wait(Until.findObjects(By.text(text)), wait).size > 0
+    !wait(Until.findObjects(By.text(text)), wait).isNullOrEmpty()
 } catch (err: Exception) {
     false
 }
@@ -58,7 +63,7 @@ fun UiDevice.textExists(
     pattern: Pattern,
     wait: Long = defaultWaitingTime
 ) = try {
-    wait(Until.findObjects(By.text(pattern)), wait).size > 0
+    !wait(Until.findObjects(By.text(pattern)), wait).isNullOrEmpty()
 } catch (err: Exception) {
     false
 }
@@ -73,7 +78,7 @@ fun UiDevice.containsText(
     text: String,
     wait: Long = defaultWaitingTime
 ) = try {
-    wait(Until.findObjects(By.textContains(text)), wait).size > 0
+    !wait(Until.findObjects(By.textContains(text)), wait).isNullOrEmpty()
 } catch (err: Exception) {
     false
 }
@@ -88,7 +93,7 @@ fun UiDevice.descriptionExist(
     text: String,
     wait: Long = defaultWaitingTime
 ) = try {
-    wait(Until.findObjects(By.desc(text)), wait).size > 0
+    !wait(Until.findObjects(By.desc(text)), wait).isNullOrEmpty()
 } catch (err: Exception) {
     false
 }
@@ -103,7 +108,7 @@ fun UiDevice.descriptionExist(
     pattern: Pattern,
     wait: Long = defaultWaitingTime
 ) = try {
-    wait(Until.findObjects(By.desc(pattern)), wait).size > 0
+    !wait(Until.findObjects(By.desc(pattern)), wait).isNullOrEmpty()
 } catch (err: Exception) {
     false
 }
@@ -140,13 +145,10 @@ fun UiDevice.byDescription(
 fun UiDevice.textClick(
     text: String,
     wait: Long = defaultWaitingTime
-) {
-    val obj = wait(Until.findObject(By.text(text)), wait)
-    try {
-        obj.click()
-    } catch (uiNotFound: Exception) {
-        uiNotFound.printStackTrace()
-    }
+) = try {
+    wait(Until.findObject(By.text(text)), wait).click()
+} catch (uiNotFound: Exception) {
+    uiNotFound.printStackTrace()
 }
 
 /**
@@ -158,13 +160,10 @@ fun UiDevice.textClick(
 fun UiDevice.textClick(
     pattern: Pattern,
     wait: Long = defaultWaitingTime
-) {
-    val obj = wait(Until.findObject(By.text(pattern)), wait)
-    try {
-        obj.click()
-    } catch (uiNotFound: Exception) {
-        uiNotFound.printStackTrace()
-    }
+) = try {
+    wait(Until.findObject(By.text(pattern)), wait).click()
+} catch (uiNotFound: Exception) {
+    uiNotFound.printStackTrace()
 }
 
 
@@ -178,14 +177,12 @@ fun UiDevice.textClick(
 fun UiDevice.descriptionClick(
     text: String,
     wait: Long = defaultWaitingTime
-) {
-    val obj = wait(Until.findObject(By.desc(text)), wait)
-    try {
-        obj.click()
-    } catch (uiNotFound: Exception) {
-        uiNotFound.printStackTrace()
-    }
+) = try {
+    wait(Until.findObject(By.desc(text)), wait).click()
+} catch (uiNotFound: Exception) {
+    uiNotFound.printStackTrace()
 }
+
 
 /**
  * Click in an UIObject2 by description pattern. This is useful to search for Images or EditTexts
@@ -197,13 +194,10 @@ fun UiDevice.descriptionClick(
 fun UiDevice.descriptionClick(
     pattern: Pattern,
     wait: Long = defaultWaitingTime
-) {
-    val obj = wait(Until.findObject(By.desc(pattern)), wait)
-    try {
-        obj.click()
-    } catch (uiNotFound: Exception) {
-        uiNotFound.printStackTrace()
-    }
+) = try {
+    wait(Until.findObject(By.desc(pattern)), wait).click()
+} catch (uiNotFound: Exception) {
+    uiNotFound.printStackTrace()
 }
 
 /**
@@ -221,7 +215,7 @@ fun UiDevice.slowingTypeNumberInKeyboard(
 ) {
     val field = wait(Until.findObject(By.desc(fieldDescription)), wait)
     field.click()
-    waitForIdle(1000) //wait for keyboard
+    waitForIdle(wait) //wait for keyboard
     text.forEach { wait(Until.findObject(By.text(it.toString())), 50).click() }
 }
 
@@ -241,7 +235,7 @@ fun UiDevice.scrollUntilFindText(
     scrollPixels: Int = 300
 ): UiObject2? {
     var scrollAttempts = 0
-    while (!textExists(text, 25L)) {
+    while (!textExists(text, defaultWaitingTime)) {
         swipe(
             scrollXStartPosition,
             scrollYStartPosition,
@@ -249,14 +243,14 @@ fun UiDevice.scrollUntilFindText(
             scrollYStartPosition - scrollPixels,
             15
         )
-        waitForIdle(600)
+        waitForIdle(defaultWaitingTime)
         scrollAttempts++
         if (scrollAttempts >= maximumScrolls) {
             println("Couldn't find $text")
             return null
         }
     }
-    return byText(text, 500)
+    return byText(text, defaultWaitingTime)
 }
 
 /**
@@ -276,7 +270,7 @@ fun UiDevice.scrollUntilFindDescription(
     scrollPixels: Int = 300
 ): UiObject2? {
     var scrollAttempts = 0
-    while (!descriptionExist(text, 25L)) {
+    while (!descriptionExist(text, defaultWaitingTime)) {
         swipe(
             scrollXStartPosition,
             scrollYStartPosition,
@@ -284,12 +278,42 @@ fun UiDevice.scrollUntilFindDescription(
             scrollYStartPosition - scrollPixels,
             15
         )
-        waitForIdle(600)
+        waitForIdle(defaultWaitingTime)
         scrollAttempts++
         if (scrollAttempts >= maximumScrolls) {
             println("Couldn't find $text")
             return null
         }
     }
-    return byDescription(text, 500)
+    return byDescription(text, defaultWaitingTime)
+}
+
+/**
+ * Check if a text is visible on screen.
+ * This method also wait for it for some milliseconds
+ * @param text the text that you want to search in your screen
+ * @param wait how long you want to wait for it (Default is 200 milliseconds)
+ */
+fun UiDevice.assertTextExist(
+    text: String,
+    wait: Long = defaultWaitingTime
+) = try {
+    assertTrue("$text should be visible",textExists(text,wait))
+} catch (uiNotFound: Exception) {
+    uiNotFound.printStackTrace()
+}
+
+/**
+ * Check if a text is visible on screen.
+ * This method also wait for it for some milliseconds
+ * @param text the text that you want to search in your screen
+ * @param wait how long you want to wait for it (Default is 200 milliseconds)
+ */
+fun UiDevice.assertTextExist(
+    text: Pattern,
+    wait: Long = defaultWaitingTime
+) = try {
+    assertTrue("$text should be visible",textExists(text,wait))
+} catch (uiNotFound: Exception) {
+    uiNotFound.printStackTrace()
 }
