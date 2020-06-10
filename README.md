@@ -18,7 +18,7 @@ fun testAppLogin() = Kobaia.test().apply {
 ```
 
 <p float="left" align="center">
-    <img src="https://raw.githubusercontent.com/AraujoJordan/Kobaia/master/doc/code.webp" width="200"/>
+    <img src="https://raw.githubusercontent.com/AraujoJordan/Kobaia/master/doc/code.webp" width="600"/>
     <img src="https://raw.githubusercontent.com/AraujoJordan/Kobaia/master/doc/usage.webp" width="200"/>
 </p>
 
