@@ -35,6 +35,7 @@ class KobaiaInstrumentedTest {
         IdlingPolicies.setIdlingResourceTimeout(1, TimeUnit.SECONDS)
     }
 
+
     @Test
     fun testApp() = Kobaia.test().apply {
         textClick("CLICK ME!")
@@ -47,5 +48,6 @@ class KobaiaInstrumentedTest {
         scrollUntilFindText("SCROLL TO CLICK ME!")
         assertTextExist("SCROLL TO CLICK ME!")
     }
+
 
 }
