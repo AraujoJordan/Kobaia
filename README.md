@@ -1,10 +1,11 @@
-# LaTest
-**Not the first UI test library, but is easy to use**
+# Kobaia
+**An android UI test library made in Kotlin**
 
-LaTest is an Android library that provides an easy way to test UI with Kotlin.
+Kobaia is an Android library that provides an easy way to test UI with Kotlin. Built on top of UIAutomator2, it provides a simple and discoverable API, removing most of the boilerplate and verbosity of common UIAutomator tasks.
 
-```kotloin
-uiDevice.apply {
+```kotlin
+@Test
+fun testAppLogin() = Kobaia.test().apply {
     textClick("Skip", 2000)
     textClick("Get Started")
     textClick("Log In", 2000)
@@ -16,16 +17,19 @@ uiDevice.apply {
 }
 ```
 
-## 🚀 Why you should use LaTest?
+<p float="left" align="center">
+    <img src="https://raw.githubusercontent.com/AraujoJordan/Kobaia/master/doc/code.webp" width="200"/>
+    <img src="https://raw.githubusercontent.com/AraujoJordan/Kobaia/master/doc/usage.webp" width="200"/>
+</p>
+
+## 🚀 Why you should use Kobaia?
 
 1. Behaviour Driven Development testing
-   * LaTest is an high-level test library that create tests readable as close to what the user are doing with the app. So you can focus yours UI tests in a generic user interaction approach.
-2. No more wait for your UI
-   * LaTest wait your UI be visible in the screen. Animations and networks requests doesn't need wait/sleep threads workarounds.
+   * Kobaia is an high-level test library that create tests readable as close to what the user are doing with the app. So you can focus yours UI tests in a generic user interaction approach.
+2. Automatic wait for your UI
+   * Kobaia wait your UI be visible in the screen. Animations and networks requests doesn't need wait/sleep threads workarounds.
 3. Interact with elements outside your app
-   * Close the app and open notifications tray? Or even the apps drawer? It's an easy pie with LaTest.
-4. Uses UiAutomator2.
-   * Tests running Android 6/UiAutomator 2 are in average 20-30% faster then the same ones on Android 5.1/UiAutomator. ![Source](https://stackoverflow.com/a/50131368 "Source")
+   * Close the app and open notifications tray? Or even the apps drawer? It's an easy pie with Kobaia.
 
 ## 📖 Usage
 
@@ -47,11 +51,11 @@ allprojects {
 
 #### Step 2. Add the dependency to your app build file
 
-+ build.gradle (Module: app) [![Jitpack Enable](https://jitpack.io/v/AraujoJordan/latest.svg)](https://jitpack.io/AraujoJordan/latest/)
++ build.gradle (Module: app) [![Jitpack Enable](https://jitpack.io/v/AraujoJordan/Kobaia.svg)](https://jitpack.io/AraujoJordan/Kobaia/)
 ```gradle
 dependencies {
     ...
-	implementation 'com.github.AraujoJordan:latest:x.x.x'
+	implementation 'com.github.AraujoJordan:Kobaia:x.x.x'
 }
 ```
 
