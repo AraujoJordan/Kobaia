@@ -1,11 +1,13 @@
 # Kobaia
-**An android UI test library made in Kotlin**
+An android UI test library made in Kotlin
+
+[![Jitpack Enable](https://jitpack.io/v/AraujoJordan/Kobaia.svg)](https://jitpack.io/p/AraujoJordan/Kobaia/)
 
 Kobaia is an Android library that provides an easy way to test UI with Kotlin. Built on top of UIAutomator2, it provides a simple and discoverable API, removing most of the boilerplate and verbosity of common UIAutomator tasks.
 
 ```kotlin
 @Test
-fun testAppLogin() = Kobaia.test().apply {
+fun testAppLogin() = uiDevice().apply {
     textClick("Skip", 2000)
     textClick("Get Started")
     textClick("Log In", 2000)
@@ -51,7 +53,7 @@ allprojects {
 
 #### Step 2. Add the dependency to your app build file
 
-+ build.gradle (Module: app) [![Jitpack Enable](https://jitpack.io/v/AraujoJordan/Kobaia.svg)](https://jitpack.io/AraujoJordan/Kobaia/)
++ build.gradle (Module: app) [![Jitpack Enable](https://jitpack.io/v/AraujoJordan/Kobaia.svg)](https://jitpack.io/p/AraujoJordan/Kobaia/)
 ```gradle
 dependencies {
     ...
