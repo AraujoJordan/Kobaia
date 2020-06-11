@@ -4,12 +4,8 @@ import androidx.test.espresso.IdlingPolicies
 import androidx.test.filters.LargeTest
 import androidx.test.internal.runner.junit4.AndroidJUnit4ClassRunner
 import androidx.test.rule.ActivityTestRule
-import com.araujo.jordan.kobaia.Kobaia
-import com.araujo.jordan.kobaia.Kobaia.Companion.assertTextExist
-import com.araujo.jordan.kobaia.Kobaia.Companion.descriptionClick
-import com.araujo.jordan.kobaia.Kobaia.Companion.scrollUntilFindText
-import com.araujo.jordan.kobaia.Kobaia.Companion.slowingTypeNumberInKeyboard
-import com.araujo.jordan.kobaia.Kobaia.Companion.textClick
+import com.araujo.jordan.kobaia.*
+
 import org.junit.Before
 import org.junit.FixMethodOrder
 import org.junit.Rule
@@ -37,7 +33,7 @@ class KobaiaInstrumentedTest {
 
 
     @Test
-    fun testApp() = Kobaia.test().apply {
+    fun testApp() = uiDevice().apply {
         textClick("CLICK ME!")
         descriptionClick("fluffy")
         textClick("YOU CAN CLICK ME!", 10000)
