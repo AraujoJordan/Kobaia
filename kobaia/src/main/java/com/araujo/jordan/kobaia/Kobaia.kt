@@ -254,6 +254,40 @@ fun UiDevice.scrollUntilFindText(
 
 /**
  * Scroll Vertically a RecycleView, ListVIew or ScrollView until find a text.
+ * @param pattern pattern that want to be find
+ * @param maximumScrolls how many times will scroll until give up (Default: 5)
+ * @param scrollXStartPosition Start X position of the scroll (Default: 500)
+ * @param scrollYStartPosition Start Y position of the scroll (Default: 1500)
+ * @param scrollPixels How many pixels will be scrolled (Default: 300)
+ */
+fun UiDevice.scrollUntilFindText(
+    pattern: Pattern,
+    maximumScrolls: Int = 5,
+    scrollXStartPosition: Int = 500,
+    scrollYStartPosition: Int = 1500,
+    scrollPixels: Int = 300
+): UiObject2? {
+    var scrollAttempts = 0
+    while (!textExists(pattern, defaultWaitingTime)) {
+        swipe(
+            scrollXStartPosition,
+            scrollYStartPosition,
+            scrollXStartPosition,
+            scrollYStartPosition - scrollPixels,
+            15
+        )
+        waitForIdle(defaultWaitingTime)
+        scrollAttempts++
+        if (scrollAttempts >= maximumScrolls) {
+            println("Couldn't find $pattern")
+            return null
+        }
+    }
+    return byText(pattern, defaultWaitingTime)
+}
+
+/**
+ * Scroll Vertically a RecycleView, ListVIew or ScrollView until find a text.
  * This is useful to search for Images or EditTexts
  * @param text that want to be find
  * @param maximumScrolls how many times will scroll until give up (Default: 5)
@@ -288,6 +322,41 @@ fun UiDevice.scrollUntilFindDescription(
 }
 
 /**
+ * Scroll Vertically a RecycleView, ListVIew or ScrollView until find a text.
+ * This is useful to search for Images or EditTexts
+ * @param pattern that want to be find
+ * @param maximumScrolls how many times will scroll until give up (Default: 5)
+ * @param scrollXStartPosition Start X position of the scroll (Default: 500)
+ * @param scrollYStartPosition Start Y position of the scroll (Default: 1500)
+ * @param scrollPixels How many pixels will be scrolled (Default: 300)
+ */
+fun UiDevice.scrollUntilFindDescription(
+    pattern: Pattern,
+    maximumScrolls: Int = 5,
+    scrollXStartPosition: Int = 500,
+    scrollYStartPosition: Int = 1500,
+    scrollPixels: Int = 300
+): UiObject2? {
+    var scrollAttempts = 0
+    while (!descriptionExist(pattern, defaultWaitingTime)) {
+        swipe(
+            scrollXStartPosition,
+            scrollYStartPosition,
+            scrollXStartPosition,
+            scrollYStartPosition - scrollPixels,
+            15
+        )
+        waitForIdle(defaultWaitingTime)
+        scrollAttempts++
+        if (scrollAttempts >= maximumScrolls) {
+            println("Couldn't find $pattern")
+            return null
+        }
+    }
+    return byDescription(pattern, defaultWaitingTime)
+}
+
+/**
  * Check if a text is visible on screen.
  * This method also wait for it for some milliseconds
  * @param text the text that you want to search in your screen
@@ -315,6 +384,15 @@ fun UiDevice.assertTextExist(
     assertTrue("$text should be visible", textExists(text, wait))
 } catch (uiNotFound: Exception) {
     uiNotFound.printStackTrace()
+}
+
+private fun UiDevice.containsClick(
+    text: String,
+    wait: Long = defaultWaitingTime
+) = try {
+    wait(Until.findObjects(By.textContains(text)), wait).firstOrNull()?.click()
+} catch (err: Exception) {
+    false
 }
 
 /**
