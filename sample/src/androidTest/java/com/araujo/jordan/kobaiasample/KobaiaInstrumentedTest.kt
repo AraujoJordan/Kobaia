@@ -33,17 +33,18 @@ class KobaiaInstrumentedTest {
 
 
     @Test
-    fun testApp() = uiDevice().apply {
-        textClick("CLICK ME!")
-        descriptionClick("fluffy")
-        textClick("YOU CAN CLICK ME!", 10000)
-        slowingTypeNumberInKeyboard("editField", "133.37")
-        pressBack()
-        pressHome()
-        textClick("Kobaia")
-        scrollUntilFindText("SCROLL TO CLICK ME!")
-        assertTextExist("SCROLL TO CLICK ME!")
+    fun testApp() {
+        uiDevice().apply {
+            textClick("CLICK ME!")
+            descriptionClick("fluffy")
+            textClick("YOU CAN CLICK ME!", 15000)
+            slowingTypeNumberInKeyboard("editField", "133.37")
+            pressBack()
+            pressHome()
+            waitTest(15000)
+            textClick("Kobaia")
+            scrollUntilFindText("SCROLL TO CLICK ME!")
+            assertTextExist("SCROLL TO CLICK ME!")
+        }
     }
-
-
 }

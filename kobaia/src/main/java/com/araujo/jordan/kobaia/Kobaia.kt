@@ -1,11 +1,10 @@
 package com.araujo.jordan.kobaia
 
 import androidx.test.InstrumentationRegistry.getInstrumentation
-import androidx.test.uiautomator.By
-import androidx.test.uiautomator.UiDevice
-import androidx.test.uiautomator.UiObject2
-import androidx.test.uiautomator.Until
+import androidx.test.uiautomator.*
 import junit.framework.Assert.assertTrue
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import java.util.regex.Pattern
 
 fun uiDevice() = UiDevice.getInstance(getInstrumentation())
@@ -151,6 +150,20 @@ fun UiDevice.textClick(
 }
 
 /**
+ * Click in an UIObject2 by text. This method won't fail your test if this object is not clicked
+ * This method also wait for it for some milliseconds
+ * @param text the subtext that is content where you want to be clicked in your screen
+ */
+fun UiDevice.containsClick(
+    text: String,
+    wait: Long = defaultWaitingTime
+) = try {
+    wait(Until.findObjects(By.textContains(text)), wait).firstOrNull()?.click()
+} catch (err: Exception) {
+    false
+}
+
+/**
  * Click in an UIObject2 by pattern. This method won't fail your test if this object is not clicked
  * This method also wait for it for some milliseconds
  * @param pattern the text pattern that you want to be clicked in your screen
@@ -219,71 +232,43 @@ fun UiDevice.slowingTypeNumberInKeyboard(
 }
 
 /**
- * Scroll Vertically a RecycleView, ListVIew or ScrollView until find a text.
+ * Scroll a Scrollable view until find a text.
  * @param text that want to be find
  * @param maximumScrolls how many times will scroll until give up (Default: 5)
- * @param scrollXStartPosition Start X position of the scroll (Default: 500)
- * @param scrollYStartPosition Start Y position of the scroll (Default: 1500)
- * @param scrollPixels How many pixels will be scrolled (Default: 300)
  */
 fun UiDevice.scrollUntilFindText(
     text: String,
-    maximumScrolls: Int = 5,
-    scrollXStartPosition: Int = 500,
-    scrollYStartPosition: Int = 1500,
-    scrollPixels: Int = 300
+    maximumScrolls: Int = 5
 ): UiObject2? {
-    var scrollAttempts = 0
-    while (!textExists(text, defaultWaitingTime)) {
-        swipe(
-            scrollXStartPosition,
-            scrollYStartPosition,
-            scrollXStartPosition,
-            scrollYStartPosition - scrollPixels,
-            15
-        )
-        waitForIdle(defaultWaitingTime)
-        scrollAttempts++
-        if (scrollAttempts >= maximumScrolls) {
-            println("Couldn't find $text")
-            return null
+    repeat(maximumScrolls) {
+        UiScrollable(UiSelector().scrollable(true)).scrollIntoView(UiSelector().text(text))
+        try {
+            return byText(text)
+        } catch (err: Exception) {
+            println("NOT FOUND, ATTEMPT $it")
         }
     }
-    return byText(text, defaultWaitingTime)
+    return null
 }
 
 /**
  * Scroll Vertically a RecycleView, ListVIew or ScrollView until find a text.
  * @param pattern pattern that want to be find
  * @param maximumScrolls how many times will scroll until give up (Default: 5)
- * @param scrollXStartPosition Start X position of the scroll (Default: 500)
- * @param scrollYStartPosition Start Y position of the scroll (Default: 1500)
- * @param scrollPixels How many pixels will be scrolled (Default: 300)
  */
-fun UiDevice.scrollUntilFindText(
+fun UiDevice.scrollUntilFindPattern(
     pattern: Pattern,
-    maximumScrolls: Int = 5,
-    scrollXStartPosition: Int = 500,
-    scrollYStartPosition: Int = 1500,
-    scrollPixels: Int = 300
+    maximumScrolls: Int = 5
 ): UiObject2? {
-    var scrollAttempts = 0
-    while (!textExists(pattern, defaultWaitingTime)) {
-        swipe(
-            scrollXStartPosition,
-            scrollYStartPosition,
-            scrollXStartPosition,
-            scrollYStartPosition - scrollPixels,
-            15
-        )
-        waitForIdle(defaultWaitingTime)
-        scrollAttempts++
-        if (scrollAttempts >= maximumScrolls) {
-            println("Couldn't find $pattern")
-            return null
+    repeat(maximumScrolls) {
+        UiScrollable(UiSelector().scrollable(true)).scrollIntoView(UiSelector().textMatches(pattern.pattern()))
+        try {
+            return byText(pattern)
+        } catch (err: Exception) {
+            println("NOT FOUND, ATTEMPT $it")
         }
     }
-    return byText(pattern, defaultWaitingTime)
+    return null
 }
 
 /**
@@ -291,34 +276,20 @@ fun UiDevice.scrollUntilFindText(
  * This is useful to search for Images or EditTexts
  * @param text that want to be find
  * @param maximumScrolls how many times will scroll until give up (Default: 5)
- * @param scrollXStartPosition Start X position of the scroll (Default: 500)
- * @param scrollYStartPosition Start Y position of the scroll (Default: 1500)
- * @param scrollPixels How many pixels will be scrolled (Default: 300)
  */
 fun UiDevice.scrollUntilFindDescription(
     text: String,
-    maximumScrolls: Int = 5,
-    scrollXStartPosition: Int = 500,
-    scrollYStartPosition: Int = 1500,
-    scrollPixels: Int = 300
+    maximumScrolls: Int = 5
 ): UiObject2? {
-    var scrollAttempts = 0
-    while (!descriptionExist(text, defaultWaitingTime)) {
-        swipe(
-            scrollXStartPosition,
-            scrollYStartPosition,
-            scrollXStartPosition,
-            scrollYStartPosition - scrollPixels,
-            15
-        )
-        waitForIdle(defaultWaitingTime)
-        scrollAttempts++
-        if (scrollAttempts >= maximumScrolls) {
-            println("Couldn't find $text")
-            return null
+    repeat(maximumScrolls) {
+        UiScrollable(UiSelector().scrollable(true)).scrollIntoView(UiSelector().description(text))
+        try {
+            return byDescription(text)
+        } catch (err: Exception) {
+            println("NOT FOUND, ATTEMPT $it")
         }
     }
-    return byDescription(text, defaultWaitingTime)
+    return null
 }
 
 /**
@@ -332,28 +303,21 @@ fun UiDevice.scrollUntilFindDescription(
  */
 fun UiDevice.scrollUntilFindDescription(
     pattern: Pattern,
-    maximumScrolls: Int = 5,
-    scrollXStartPosition: Int = 500,
-    scrollYStartPosition: Int = 1500,
-    scrollPixels: Int = 300
+    maximumScrolls: Int = 5
 ): UiObject2? {
-    var scrollAttempts = 0
-    while (!descriptionExist(pattern, defaultWaitingTime)) {
-        swipe(
-            scrollXStartPosition,
-            scrollYStartPosition,
-            scrollXStartPosition,
-            scrollYStartPosition - scrollPixels,
-            15
+    repeat(maximumScrolls) {
+        UiScrollable(UiSelector().scrollable(true)).scrollIntoView(
+            UiSelector().descriptionMatches(
+                pattern.pattern()
+            )
         )
-        waitForIdle(defaultWaitingTime)
-        scrollAttempts++
-        if (scrollAttempts >= maximumScrolls) {
-            println("Couldn't find $pattern")
-            return null
+        try {
+            return byDescription(pattern)
+        } catch (err: Exception) {
+            println("NOT FOUND, ATTEMPT $it")
         }
     }
-    return byDescription(pattern, defaultWaitingTime)
+    return null
 }
 
 /**
@@ -386,18 +350,8 @@ fun UiDevice.assertTextExist(
     uiNotFound.printStackTrace()
 }
 
-private fun UiDevice.containsClick(
-    text: String,
-    wait: Long = defaultWaitingTime
-) = try {
-    wait(Until.findObjects(By.textContains(text)), wait).firstOrNull()?.click()
-} catch (err: Exception) {
-    false
-}
-
 /**
- *
+ * Make the app wait using Coroutine
+ * @param wait time in milliseconds
  */
-fun waitTest(wait: Long = defaultWaitingTime) = Thread.sleep(wait)
-
-
+fun waitTest(wait: Long = defaultWaitingTime) = runBlocking { delay(wait) }
