@@ -2,6 +2,9 @@
 An android UI test library made in Kotlin
 
 [![Jitpack Enable](https://jitpack.io/v/AraujoJordan/Kobaia.svg)](https://jitpack.io/p/AraujoJordan/Kobaia/)
+[![CircleCI](https://circleci.com/gh/AraujoJordan/Kobaia.svg?style=shield)](https://circleci.com/gh/AraujoJordan/Kobaia)
+[![GitHub license](https://img.shields.io/badge/License-MIT-brightgreen)](https://github.com/AraujoJordan/ExcuseMe/LICENSE)
+[![HitCount](http://hits.dwyl.com/AraujoJordan/Kobaia.svg)](http://hits.dwyl.com/AraujoJordan/Kobaia)
 
 Kobaia is an Android library that provides an easy way to test UI with Kotlin. Built on top of UIAutomator2, it provides a simple and discoverable API, removing most of the boilerplate and verbosity of common UIAutomator tasks.
 
