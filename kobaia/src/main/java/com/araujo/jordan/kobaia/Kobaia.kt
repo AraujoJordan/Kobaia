@@ -81,7 +81,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
         ) = try {
             byText(text, wait) != null
         } catch (err: Exception) {
-            throw NoSuchElementException("Couldn't find $text String")
+            false
         }
 
 
@@ -97,7 +97,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
         ) = try {
             byText(pattern, wait) != null
         } catch (err: Exception) {
-            throw NoSuchElementException("Couldn't find ${pattern.pattern()} pattern")
+            false
         }
 
         /**
@@ -112,7 +112,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
         ) = try {
             !uiDevice?.wait(Until.findObjects(By.textContains(text)), wait).isNullOrEmpty()
         } catch (err: Exception) {
-            throw NoSuchElementException("Couldn't find $text String")
+            false
         }
 
 
@@ -128,7 +128,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
         ) = try {
             !uiDevice?.wait(Until.findObjects(By.desc(text)), wait).isNullOrEmpty()
         } catch (err: Exception) {
-            throw NoSuchElementException("Couldn't find $text String")
+            false
         }
 
 
@@ -144,7 +144,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
         ) = try {
             !uiDevice?.wait(Until.findObjects(By.desc(pattern)), wait).isNullOrEmpty()
         } catch (err: Exception) {
-            throw NoSuchElementException("Couldn't find ${pattern.pattern()} pattern")
+            false
         }
 
         /**
