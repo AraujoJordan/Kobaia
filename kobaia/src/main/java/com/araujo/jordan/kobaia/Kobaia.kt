@@ -3,6 +3,7 @@ package com.araujo.jordan.kobaia
 import android.app.Activity
 import android.content.Intent
 import androidx.test.espresso.IdlingPolicies
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.ActivityTestRule
 import androidx.test.uiautomator.*
 import com.schibsted.spain.barista.interaction.BaristaSleepInteractions.sleep
@@ -449,16 +450,20 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
         IdlingPolicies.setMasterPolicyTimeout(5, TimeUnit.SECONDS)
         IdlingPolicies.setIdlingResourceTimeout(5, TimeUnit.SECONDS)
         activityTestRule.launchActivity(null)
-        uiDevice =
-            UiDevice.getInstance(androidx.test.platform.app.InstrumentationRegistry.getInstrumentation())
+        while (uiDevice == null && uiDevice?.isScreenOn == true)
+            uiDevice =
+                UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
     }
 
     fun launchActivity(startIntent: Intent) {
         IdlingPolicies.setMasterPolicyTimeout(5, TimeUnit.SECONDS)
         IdlingPolicies.setIdlingResourceTimeout(5, TimeUnit.SECONDS)
         activityTestRule.launchActivity(startIntent)
-        uiDevice =
-            UiDevice.getInstance(androidx.test.platform.app.InstrumentationRegistry.getInstrumentation())
+        while (uiDevice == null && uiDevice?.isScreenOn == true) {
+            uiDevice =
+                UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+
+        }
     }
 
 }
