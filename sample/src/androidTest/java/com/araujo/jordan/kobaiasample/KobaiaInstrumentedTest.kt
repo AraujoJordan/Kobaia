@@ -1,6 +1,5 @@
 package com.araujo.jordan.kobaiasample
 
-import androidx.test.espresso.IdlingPolicies
 import androidx.test.internal.runner.junit4.AndroidJUnit4ClassRunner
 import com.araujo.jordan.kobaia.Kobaia
 import com.araujo.jordan.kobaia.Kobaia.Companion.assertTextExist
@@ -9,11 +8,9 @@ import com.araujo.jordan.kobaia.Kobaia.Companion.scrollUntilFindText
 import com.araujo.jordan.kobaia.Kobaia.Companion.slowingTypeNumberInKeyboard
 import com.araujo.jordan.kobaia.Kobaia.Companion.textClick
 import com.araujo.jordan.kobaia.Kobaia.Companion.uiDevice
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.util.concurrent.TimeUnit
 
 /**
  * Simple Kobaia test example
@@ -23,12 +20,6 @@ class KobaiaInstrumentedTest {
 
     @get:Rule
     val kobaiaRules = Kobaia(KobaiaTestActivity::class.java)
-
-    @Before
-    fun registerIdlingResource() {
-        IdlingPolicies.setMasterPolicyTimeout(5, TimeUnit.SECONDS)
-        IdlingPolicies.setIdlingResourceTimeout(5, TimeUnit.SECONDS)
-    }
 
     @Test(expected = java.lang.AssertionError::class)
     fun shouldFailIfNotFind() {
@@ -42,8 +33,8 @@ class KobaiaInstrumentedTest {
         try {
             assertTextExist("This text doesn't exist!")
         } catch (err: java.lang.AssertionError) {
+            assertTextExist("CLICK ME!")
         }
-        assertTextExist("CLICK ME!")
     }
 
     @Test
@@ -53,8 +44,8 @@ class KobaiaInstrumentedTest {
         descriptionClick("fluffy")
         textClick("YOU CAN CLICK ME!", 15000)
         slowingTypeNumberInKeyboard("editField", "133.37")
-        uiDevice?.pressBack()
-        uiDevice?.pressHome()
+        uiDevice()?.pressBack()
+        uiDevice()?.pressHome()
         textClick("Kobaia")
         scrollUntilFindText("SCROLL TO CLICK ME!")
         assertTextExist("SCROLL TO CLICK ME!")

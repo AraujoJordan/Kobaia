@@ -31,8 +31,6 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
         // 4 seconds as out threshold of timeout for a good UX.
         val defaultWaitingTime = 4000L
 
-        var uiDevice: UiDevice? = null
-
         inline fun <reified T : Activity> create(): Kobaia<T> = Kobaia.create(T::class.java)
 
         @JvmStatic
@@ -64,11 +62,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
         fun byText(
             pattern: Pattern,
             wait: Long = defaultWaitingTime
-        ) = try {
-            uiDevice()?.wait(Until.findObjects(By.text(pattern)), wait)?.firstOrNull()
-        } catch (err: Exception) {
-            throw NoSuchElementException("Couldn't find ${pattern.pattern()} pattern")
-        }
+        ) = uiDevice()?.wait(Until.findObjects(By.text(pattern)), wait)?.firstOrNull()
 
         /**
          * Check if Text is visible on screen.
@@ -79,11 +73,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
         fun textExists(
             text: String,
             wait: Long = defaultWaitingTime
-        ) = try {
-            byText(text, wait) != null
-        } catch (err: Exception) {
-            false
-        }
+        ) = byText(text, wait) != null
 
 
         /**
@@ -95,11 +85,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
         fun textExists(
             pattern: Pattern,
             wait: Long = defaultWaitingTime
-        ) = try {
-            byText(pattern, wait) != null
-        } catch (err: Exception) {
-            false
-        }
+        ) = byText(pattern, wait) != null
 
         /**
          * Check if there the given text is content visible on screen.
@@ -110,11 +96,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
         fun containsText(
             text: String,
             wait: Long = defaultWaitingTime
-        ) = try {
-            !uiDevice()?.wait(Until.findObjects(By.textContains(text)), wait).isNullOrEmpty()
-        } catch (err: Exception) {
-            false
-        }
+        ) = !uiDevice()?.wait(Until.findObjects(By.textContains(text)), wait).isNullOrEmpty()
 
 
         /**
@@ -126,11 +108,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
         fun descriptionExist(
             text: String,
             wait: Long = defaultWaitingTime
-        ) = try {
-            !uiDevice()?.wait(Until.findObjects(By.desc(text)), wait).isNullOrEmpty()
-        } catch (err: Exception) {
-            false
-        }
+        ) = !uiDevice()?.wait(Until.findObjects(By.desc(text)), wait).isNullOrEmpty()
 
 
         /**
@@ -142,11 +120,8 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
         fun descriptionExist(
             pattern: Pattern,
             wait: Long = defaultWaitingTime
-        ) = try {
-            !uiDevice()?.wait(Until.findObjects(By.desc(pattern)), wait).isNullOrEmpty()
-        } catch (err: Exception) {
-            false
-        }
+        ) = !uiDevice()?.wait(Until.findObjects(By.desc(pattern)), wait).isNullOrEmpty()
+
 
         /**
          * Get UIObject2 device by Description that appear on screen. This is useful to search for Images or EditTexts
@@ -157,11 +132,8 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
         fun byDescription(
             pattern: Pattern,
             wait: Long = defaultWaitingTime
-        ) = try {
-            uiDevice()?.wait(Until.findObjects(By.desc(pattern)), wait)?.firstOrNull()
-        } catch (err: Exception) {
-            throw NoSuchElementException("Couldn't find ${pattern.pattern()} pattern")
-        }
+        ) = uiDevice()?.wait(Until.findObjects(By.desc(pattern)), wait)?.firstOrNull()
+
 
         /**
          * Get UIObject2 device by Description that appear on screen. This is useful to search for Images or EditTexts
@@ -172,11 +144,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
         fun byDescription(
             text: String,
             wait: Long = defaultWaitingTime
-        ) = try {
-            uiDevice()?.wait(Until.findObjects(By.desc(text)), wait)?.firstOrNull()
-        } catch (err: Exception) {
-            throw NoSuchElementException("Couldn't find $text description")
-        }
+        ) = uiDevice()?.wait(Until.findObjects(By.desc(text)), wait)?.firstOrNull()
 
 
         /**
@@ -188,11 +156,8 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
         fun textClick(
             text: String,
             wait: Long = defaultWaitingTime
-        ) = try {
-            uiDevice()?.wait(Until.findObjects(By.text(text)), wait)?.forEach { it.click() }
-        } catch (err: Exception) {
-            throw NoSuchElementException("Couldn't find $text text")
-        }
+        ) = uiDevice()?.wait(Until.findObjects(By.text(text)), wait)?.forEach { it.click() }
+
 
         /**
          * Click in an UIObject2 by text. This method won't fail your test if this object is not clicked
@@ -202,11 +167,8 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
         fun containsClick(
             text: String,
             wait: Long = defaultWaitingTime
-        ) = try {
-            uiDevice()?.wait(Until.findObjects(By.textContains(text)), wait)?.forEach { it.click() }
-        } catch (err: Exception) {
-            throw NoSuchElementException("Couldn't find $text text")
-        }
+        ) = uiDevice()?.wait(Until.findObjects(By.textContains(text)), wait)?.forEach { it.click() }
+
 
         /**
          * Click in an UIObject2 by pattern. This method won't fail your test if this object is not clicked
@@ -217,11 +179,8 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
         fun textClick(
             pattern: Pattern,
             wait: Long = defaultWaitingTime
-        ) = try {
-            uiDevice()?.wait(Until.findObjects(By.text(pattern)), wait)?.forEach { it.click() }
-        } catch (err: Exception) {
-            throw NoSuchElementException("Couldn't find ${pattern.pattern()} pattern")
-        }
+        ) = uiDevice()?.wait(Until.findObjects(By.text(pattern)), wait)?.forEach { it.click() }
+
 
         /**
          * Click in an UIObject2 by description. This is useful to search for Images or EditTexts
@@ -233,11 +192,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
         fun descriptionClick(
             text: String,
             wait: Long = defaultWaitingTime
-        ) = try {
-            uiDevice()?.wait(Until.findObjects(By.desc(text)), wait)?.forEach { it.click() }
-        } catch (err: Exception) {
-            throw NoSuchElementException("Couldn't find $text text")
-        }
+        ) = uiDevice()?.wait(Until.findObjects(By.desc(text)), wait)?.forEach { it.click() }
 
 
         /**
@@ -250,11 +205,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
         fun descriptionClick(
             pattern: Pattern,
             wait: Long = defaultWaitingTime
-        ) = try {
-            uiDevice()?.wait(Until.findObjects(By.desc(pattern)), wait)?.forEach { it.click() }
-        } catch (err: Exception) {
-            throw NoSuchElementException("Couldn't find ${pattern.pattern()} pattern")
-        }
+        ) = uiDevice()?.wait(Until.findObjects(By.desc(pattern)), wait)?.forEach { it.click() }
 
 
         /**
@@ -270,18 +221,14 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
             text: String,
             wait: Long = defaultWaitingTime
         ) {
-            try {
-                val field =
-                    uiDevice()?.wait(Until.findObjects(By.desc(fieldDescription)), wait)
-                        ?.firstOrNull()
-                field?.click()
-                uiDevice()?.waitForIdle(wait) //wait for keyboard
-                text.forEach {
-                    uiDevice()?.wait(Until.findObjects(By.text(it.toString())), 50)?.firstOrNull()
-                        ?.click()
-                }
-            } catch (err: Exception) {
-                throw NoSuchElementException("Couldn't find $fieldDescription text")
+            val field =
+                uiDevice()?.wait(Until.findObjects(By.desc(fieldDescription)), wait)
+                    ?.firstOrNull()
+            field?.click()
+            uiDevice()?.waitForIdle(wait) //wait for keyboard
+            text.forEach {
+                uiDevice()?.wait(Until.findObjects(By.text(it.toString())), 50)?.firstOrNull()
+                    ?.click()
             }
         }
 
@@ -296,11 +243,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
         ): UiObject2? {
             repeat(maximumScrolls) {
                 UiScrollable(UiSelector().scrollable(true)).scrollIntoView(UiSelector().text(text))
-                try {
-                    return byText(text)
-                } catch (err: Exception) {
-                    println("NOT FOUND, ATTEMPT $it")
-                }
+                return byText(text)
             }
             return null
         }
@@ -320,11 +263,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
                         pattern.pattern()
                     )
                 )
-                try {
-                    return byText(pattern)
-                } catch (err: Exception) {
-                    println("NOT FOUND, ATTEMPT $it")
-                }
+                return byText(pattern)
             }
             return null
         }
@@ -345,11 +284,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
                         text
                     )
                 )
-                try {
-                    return byDescription(text)
-                } catch (err: Exception) {
-                    println("NOT FOUND, ATTEMPT $it")
-                }
+                return byDescription(text)
             }
             return null
         }
@@ -373,11 +308,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
                         pattern.pattern()
                     )
                 )
-                try {
-                    return byDescription(pattern)
-                } catch (err: Exception) {
-                    println("NOT FOUND, ATTEMPT $it")
-                }
+                return byDescription(pattern)
             }
             return null
         }
@@ -391,13 +322,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
         fun assertTextExist(
             text: String,
             wait: Long = defaultWaitingTime
-        ) = assertTrue(
-            "$text should be visible", try {
-                textExists(text, wait)
-            } catch (err: Exception) {
-                false
-            }
-        )
+        ) = assertTrue("$text should be visible", textExists(text, wait))
 
 
         /**
@@ -409,13 +334,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
         fun assertTextExist(
             text: Pattern,
             wait: Long = defaultWaitingTime
-        ) = assertTrue(
-            "$text should be visible", try {
-                textExists(text, wait)
-            } catch (err: Exception) {
-                false
-            }
-        )
+        ) = assertTrue("$text should be visible", textExists(text, wait))
 
         /**
          * Make the app wait using Coroutine
@@ -423,19 +342,8 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
          */
         fun waitTest(wait: Long = defaultWaitingTime) = sleep(wait)
 
-        private fun uiDevice(): UiDevice? {
-            while (uiDevice == null || !try {
-                    uiDevice?.isScreenOn == true
-                } catch (err: Exception) {
-                    false
-                }
-            ) {
-                uiDevice =
-                    UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        fun uiDevice() = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
 
-            }
-            return uiDevice
-        }
 
     }
 
