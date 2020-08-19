@@ -9,7 +9,11 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name="com.araujo.jordan.kobaiasample.KobaiaTestActivity">
+        <activity android:name="com.araujo.jordan.kobaiasample.KobaiaTestActivity" />
+        <activity android:name="com.araujo.jordan.kobaiasample.WelcomeActivity" />
+        <activity android:name="com.araujo.jordan.kobaiasample.LoginActivity" />
+        <activity android:name="com.araujo.jordan.kobaiasample.LandingActivity" />
+        <activity android:name="com.araujo.jordan.kobaiasample.SplashActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

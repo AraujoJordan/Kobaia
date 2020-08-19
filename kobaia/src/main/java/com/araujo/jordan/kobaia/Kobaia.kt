@@ -19,17 +19,17 @@ import org.junit.runners.model.Statement
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 
+/**
+ * An test lib build on top of UIAutomator to provide a simple a discoverable API to reduce
+ * boilerplate and verbosity
+ */
 class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
 
     companion object {
-        private const val DEFAULT_FLAKY_ATTEMPTS = 10
+        private const val DEFAULT_FLAKY_ATTEMPTS = 5
+        private const val DEFAULT_WAITING_TIME = 5000L
         private const val LAUNCH_ACTIVITY_AUTOMATICALLY = false
         private const val INITIAL_TOUCH_MODE_ENABLED = true
-
-        // According to Forrester Research and Aberdeen Group, consumers abandon a website/app after
-        // waiting 3 seconds for a page to load. Adding that to the enter/exit loading of 500ms, we have
-        // 4 seconds as out threshold of timeout for a good UX.
-        val defaultWaitingTime = 4000L
 
         inline fun <reified T : Activity> create(): Kobaia<T> = Kobaia.create(T::class.java)
 
@@ -46,12 +46,9 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
          */
         fun byText(
             text: String,
-            wait: Long = defaultWaitingTime
-        ) = try {
-            uiDevice()?.wait(Until.findObjects(By.text(text)), wait)?.firstOrNull()
-        } catch (err: Exception) {
-            throw NoSuchElementException("Couldn't find $text text")
-        }
+            wait: Long = DEFAULT_WAITING_TIME
+        ) = uiDevice()?.wait(Until.findObjects(By.text(text)), wait)?.firstOrNull()
+
 
         /**
          * Get UIObject2 device by Pattern that appear on screen.
@@ -61,7 +58,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
          */
         fun byText(
             pattern: Pattern,
-            wait: Long = defaultWaitingTime
+            wait: Long = DEFAULT_WAITING_TIME
         ) = uiDevice()?.wait(Until.findObjects(By.text(pattern)), wait)?.firstOrNull()
 
         /**
@@ -72,7 +69,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
          */
         fun textExists(
             text: String,
-            wait: Long = defaultWaitingTime
+            wait: Long = DEFAULT_WAITING_TIME
         ) = byText(text, wait) != null
 
 
@@ -84,7 +81,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
          */
         fun textExists(
             pattern: Pattern,
-            wait: Long = defaultWaitingTime
+            wait: Long = DEFAULT_WAITING_TIME
         ) = byText(pattern, wait) != null
 
         /**
@@ -95,7 +92,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
          */
         fun containsText(
             text: String,
-            wait: Long = defaultWaitingTime
+            wait: Long = DEFAULT_WAITING_TIME
         ) = !uiDevice()?.wait(Until.findObjects(By.textContains(text)), wait).isNullOrEmpty()
 
 
@@ -107,7 +104,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
          */
         fun descriptionExist(
             text: String,
-            wait: Long = defaultWaitingTime
+            wait: Long = DEFAULT_WAITING_TIME
         ) = !uiDevice()?.wait(Until.findObjects(By.desc(text)), wait).isNullOrEmpty()
 
 
@@ -119,7 +116,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
          */
         fun descriptionExist(
             pattern: Pattern,
-            wait: Long = defaultWaitingTime
+            wait: Long = DEFAULT_WAITING_TIME
         ) = !uiDevice()?.wait(Until.findObjects(By.desc(pattern)), wait).isNullOrEmpty()
 
 
@@ -131,7 +128,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
          */
         fun byDescription(
             pattern: Pattern,
-            wait: Long = defaultWaitingTime
+            wait: Long = DEFAULT_WAITING_TIME
         ) = uiDevice()?.wait(Until.findObjects(By.desc(pattern)), wait)?.firstOrNull()
 
 
@@ -143,7 +140,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
          */
         fun byDescription(
             text: String,
-            wait: Long = defaultWaitingTime
+            wait: Long = DEFAULT_WAITING_TIME
         ) = uiDevice()?.wait(Until.findObjects(By.desc(text)), wait)?.firstOrNull()
 
 
@@ -155,7 +152,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
          */
         fun textClick(
             text: String,
-            wait: Long = defaultWaitingTime
+            wait: Long = DEFAULT_WAITING_TIME
         ) = uiDevice()?.wait(Until.findObjects(By.text(text)), wait)?.forEach { it.click() }
 
 
@@ -166,7 +163,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
          */
         fun containsClick(
             text: String,
-            wait: Long = defaultWaitingTime
+            wait: Long = DEFAULT_WAITING_TIME
         ) = uiDevice()?.wait(Until.findObjects(By.textContains(text)), wait)?.forEach { it.click() }
 
 
@@ -178,7 +175,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
          */
         fun textClick(
             pattern: Pattern,
-            wait: Long = defaultWaitingTime
+            wait: Long = DEFAULT_WAITING_TIME
         ) = uiDevice()?.wait(Until.findObjects(By.text(pattern)), wait)?.forEach { it.click() }
 
 
@@ -191,7 +188,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
          */
         fun descriptionClick(
             text: String,
-            wait: Long = defaultWaitingTime
+            wait: Long = DEFAULT_WAITING_TIME
         ) = uiDevice()?.wait(Until.findObjects(By.desc(text)), wait)?.forEach { it.click() }
 
 
@@ -204,7 +201,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
          */
         fun descriptionClick(
             pattern: Pattern,
-            wait: Long = defaultWaitingTime
+            wait: Long = DEFAULT_WAITING_TIME
         ) = uiDevice()?.wait(Until.findObjects(By.desc(pattern)), wait)?.forEach { it.click() }
 
 
@@ -219,7 +216,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
         fun slowingTypeNumberInKeyboard(
             fieldDescription: String,
             text: String,
-            wait: Long = defaultWaitingTime
+            wait: Long = DEFAULT_WAITING_TIME
         ) {
             val field =
                 uiDevice()?.wait(Until.findObjects(By.desc(fieldDescription)), wait)
@@ -321,7 +318,7 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
          */
         fun assertTextExist(
             text: String,
-            wait: Long = defaultWaitingTime
+            wait: Long = DEFAULT_WAITING_TIME
         ) = assertTrue("$text should be visible", textExists(text, wait))
 
 
@@ -333,17 +330,19 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
          */
         fun assertTextExist(
             text: Pattern,
-            wait: Long = defaultWaitingTime
+            wait: Long = DEFAULT_WAITING_TIME
         ) = assertTrue("$text should be visible", textExists(text, wait))
 
         /**
-         * Make the app wait using Coroutine
+         * Make the app wait
          * @param wait time in milliseconds
          */
-        fun waitTest(wait: Long = defaultWaitingTime) = sleep(wait)
+        fun waitTest(wait: Long = DEFAULT_WAITING_TIME) = sleep(wait)
 
+        /**
+         * Get the UIDevice using the InstrumentationRegistry
+         */
         fun uiDevice() = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
-
 
     }
 
@@ -368,18 +367,10 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
             .apply(base, description)
     }
 
-    fun launchActivity() {
-        IdlingPolicies.setMasterPolicyTimeout(5, TimeUnit.SECONDS)
-        IdlingPolicies.setIdlingResourceTimeout(5, TimeUnit.SECONDS)
-        activityTestRule.launchActivity(null)
-        uiDevice()
-    }
-
-    fun launchActivity(startIntent: Intent) {
-        IdlingPolicies.setMasterPolicyTimeout(5, TimeUnit.SECONDS)
-        IdlingPolicies.setIdlingResourceTimeout(5, TimeUnit.SECONDS)
+    fun launchActivity(startIntent: Intent? = null) {
+        IdlingPolicies.setMasterPolicyTimeout(15, TimeUnit.SECONDS)
+        IdlingPolicies.setIdlingResourceTimeout(15, TimeUnit.SECONDS)
         activityTestRule.launchActivity(startIntent)
         uiDevice()
     }
-
 }

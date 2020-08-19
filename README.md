@@ -9,22 +9,30 @@ An android UI test library made in Kotlin
 Kobaia is an Android library that provides an easy way to test UI with Kotlin. Built on top of UIAutomator2, it provides a simple and discoverable API, removing most of the boilerplate and verbosity of common UIAutomator tasks.
 
 ```kotlin
+@get:Rule
+val kobaiaRules = Kobaia(SplashActivity::class.java)
+
 @Test
-fun testAppLogin() = uiDevice().apply {
-    textClick("Skip", 2000)
-    textClick("Get Started")
-    textClick("Log In", 2000)
-
-    byDescription("Enter your email").text = "test123@email.com"
-    byDescription("Enter your password").text = "123456789"
-
-    descriptionClick("Login Button")
+fun testApp() {
+    kobaiaRules.launchActivity()
+    assertTextExist("Kobaia")
+    assertTextExist("SKIP")
+    assertTextExist("NEXT")
+    textClick("SKIP")
+    textClick("GET STARTED")
+    textClick("LOG IN")
+    byDescription("Enter your email")?.text = "right_email@kobaia.com"
+    byDescription("Enter your password")?.text = "12345678"
+    textClick("ENTER")
+    assertTextExist("Welcome to Kobaia!")
 }
 ```
 
 <p float="left" align="center">
-    <img src="https://raw.githubusercontent.com/AraujoJordan/Kobaia/master/doc/code.webp" width="600"/>
-    <img src="https://raw.githubusercontent.com/AraujoJordan/Kobaia/master/doc/usage.webp" width="200"/>
+    <video autoplay muted preload="none"
+           src="https://raw.githubusercontent.com/AraujoJordan/Kobaia/master/doc/kobaiaExample.mp4"
+           style="width: 600px;">
+    </video>
 </p>
 
 ## 🚀 Why you should use Kobaia?
@@ -32,9 +40,9 @@ fun testAppLogin() = uiDevice().apply {
 1. Behaviour Driven Development testing
    * Kobaia is an high-level test library that create tests readable as close to what the user are doing with the app. So you can focus yours UI tests in a generic user interaction approach.
 2. Automatic wait for your UI
-   * Kobaia wait your UI be visible in the screen. Animations and networks requests doesn't need wait/sleep threads workarounds.
+   * Kobaia wait your UI be visible in the screen. Animations, long processes and networks requests doesn't need wait/sleep threads workarounds.
 3. Interact with elements outside your app
-   * Close the app and open notifications tray? Or even the apps drawer? It's an easy pie with Kobaia.
+   * Close the app and open and read an push notification? Or maybe test share a text message to an messenger app? It's easy with Kobaia.
 
 ## 📖 Usage
 
