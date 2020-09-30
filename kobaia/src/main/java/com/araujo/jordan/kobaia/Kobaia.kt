@@ -23,12 +23,14 @@ import java.util.regex.Pattern
  * An test lib build on top of UIAutomator to provide a simple a discoverable API to reduce
  * boilerplate and verbosity
  */
-class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
+class Kobaia<T : Activity>(
+    activityClass: Class<T>,
+    DEFAULT_FLAKY_ATTEMPTS: Int = 5,
+    LAUNCH_ACTIVITY_AUTOMATICALLY: Boolean = false
+) : TestRule {
 
     companion object {
-        private const val DEFAULT_FLAKY_ATTEMPTS = 5
         private const val DEFAULT_WAITING_TIME = 5000L
-        private const val LAUNCH_ACTIVITY_AUTOMATICALLY = false
         private const val INITIAL_TOUCH_MODE_ENABLED = true
 
         inline fun <reified T : Activity> create(): Kobaia<T> = Kobaia.create(T::class.java)
@@ -143,7 +145,6 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
             wait: Long = DEFAULT_WAITING_TIME
         ) = uiDevice()?.wait(Until.findObjects(By.desc(text)), wait)?.firstOrNull()
 
-
         /**
          * Click in an UIObject2 by text. This method won't fail your test if this object is not clicked
          * This method also wait for it for some milliseconds
@@ -154,7 +155,6 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
             text: String,
             wait: Long = DEFAULT_WAITING_TIME
         ) = uiDevice()?.wait(Until.findObjects(By.text(text)), wait)?.forEach { it.click() }
-
 
         /**
          * Click in an UIObject2 by text. This method won't fail your test if this object is not clicked
@@ -343,8 +343,8 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
          * Get the UIDevice using the InstrumentationRegistry
          */
         fun uiDevice() = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
-
     }
+
 
     private val clearPreferencesRule: ClearPreferencesRule = ClearPreferencesRule()
     private val clearDatabaseRule: ClearDatabaseRule = ClearDatabaseRule()
@@ -367,9 +367,12 @@ class Kobaia<T : Activity>(activityClass: Class<T>) : TestRule {
             .apply(base, description)
     }
 
-    fun launchActivity(startIntent: Intent? = null) {
-        IdlingPolicies.setMasterPolicyTimeout(15, TimeUnit.SECONDS)
-        IdlingPolicies.setIdlingResourceTimeout(15, TimeUnit.SECONDS)
+    /**
+     * Launch test activity
+     */
+    fun launchActivity(startIntent: Intent? = null, waitLimit: Long = DEFAULT_WAITING_TIME) {
+        IdlingPolicies.setMasterPolicyTimeout(waitLimit, TimeUnit.SECONDS)
+        IdlingPolicies.setIdlingResourceTimeout(waitLimit, TimeUnit.SECONDS)
         activityTestRule.launchActivity(startIntent)
         uiDevice()
     }

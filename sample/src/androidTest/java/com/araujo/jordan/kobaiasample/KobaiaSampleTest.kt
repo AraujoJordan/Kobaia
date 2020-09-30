@@ -17,7 +17,7 @@ class KobaiaSampleTest {
 
     @Test
     fun testApp() {
-        kobaiaRules.launchActivity()
+        kobaiaRules.launchActivity(waitLimit = 1000)
         assertTextExist("Kobaia")
         assertTextExist("SKIP")
         assertTextExist("NEXT")
