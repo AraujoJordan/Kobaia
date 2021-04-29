@@ -1,0 +1,30 @@
+version: 2
+updates:
+- package-ecosystem: gradle
+  directory: "/"
+  schedule:
+    interval: daily
+    time: "10:00"
+  open-pull-requests-limit: 10
+  ignore:
+  - dependency-name: org.jetbrains.kotlin:kotlin-stdlib-jdk8
+    versions:
+    - 1.4.21-2
+    - 1.4.30
+    - 1.4.31
+    - 1.4.32
+  - dependency-name: org.jetbrains.kotlin:kotlin-gradle-plugin
+    versions:
+    - 1.4.21-2
+    - 1.4.30
+    - 1.4.31
+    - 1.4.32
+  - dependency-name: com.schibsted.spain:barista
+    versions:
+    - 3.8.0
+  - dependency-name: com.android.tools.build:gradle
+    versions:
+    - 4.1.2
+  - dependency-name: org.jetbrains.kotlinx:kotlinx-coroutines-android
+    versions:
+    - 1.4.2-native-mt
