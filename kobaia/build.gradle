@@ -25,7 +25,7 @@ dependencies {
     api 'com.android.support.test:runner:1.0.2'
     api 'com.android.support.test:rules:1.0.2'
     api 'androidx.test.uiautomator:uiautomator:2.2.0'
-    api 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.4.1-native-mt'
+    api 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.5.1-native-mt'
     api ('com.schibsted.spain:barista:3.7.0') {
         exclude group: 'org.jetbrains.kotlin' // Only if you already use Kotlin in your project
     }
