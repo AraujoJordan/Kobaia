@@ -1,38 +1,45 @@
-apply plugin: 'com.android.library'
-apply plugin: 'kotlin-android'
-apply plugin: 'kotlin-android-extensions'
+plugins {
+    id 'com.android.library'
+}
 
 android {
-    compileSdkVersion 30
-    buildToolsVersion "30.0.2"
+    namespace 'com.araujo.jordan.kobaia'
+    compileSdk 37
 
     defaultConfig {
-        minSdkVersion 19
-        targetSdkVersion 30
-        versionCode 1
-        versionName "1.0"
+        minSdk 23
         multiDexEnabled true
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles 'consumer-rules.pro'
     }
-    lintOptions {
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
         disable 'InvalidPackage'
     }
 }
 
-dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
-    api 'com.android.support.test:runner:1.0.2'
-    api 'com.android.support.test:rules:1.0.2'
-    api 'androidx.test.uiautomator:uiautomator:2.2.0'
-    api 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.4.1-native-mt'
-    api ('com.schibsted.spain:barista:3.7.0') {
-        exclude group: 'org.jetbrains.kotlin' // Only if you already use Kotlin in your project
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
+}
+
+dependencies {
+    api 'androidx.test:runner:1.7.0'
+    api 'androidx.test:rules:1.7.0'
+    api 'androidx.test.espresso:espresso-core:3.7.0'
+    api 'androidx.test.uiautomator:uiautomator:2.4.0'
+    api 'junit:junit:4.13.2'
+    api 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0'
 }
 
 // Exclude Kotlin files from Javadoc due to an error generating docs from Kotlin files.
 // More info: https://github.com/novoda/bintray-release/issues/71
-tasks.withType(Javadoc) {
+tasks.withType(Javadoc).configureEach {
     excludes = ['**/*.kt']
 }

@@ -1,20 +1,17 @@
 version: 2.1
-orbs:
-  codecov: codecov/codecov@1.0.2
 jobs:
   build:
     docker:
-      - image: circleci/android:api-29
+      - image: cimg/android:2026.08.1
+    resource_class: large
     environment:
-      - TERM: dumb
-      - CODECOV_TOKEN: 339a1a45-8a78-4758-96e9-63b590be7b55
-      - COV_REPORT_LOCATION: excuseme/build/reports/jacoco/testDebugUnitTestCoverage/testDebugUnitTestCoverage.xml
-      - JVM_OPTS: -Xmx2048m -XX:ParallelGCThreads=2 -XX:ConcGCThreads=2 -XX:ParallelGCThreads=2 -Djava.util.concurrent.ForkJoinPool.common.parallelism=2
-      - _JAVA_OPTIONS: "-Xmx2048m -XX:ParallelGCThreads=2 -XX:ConcGCThreads=2 -XX:ParallelGCThreads=2 -Djava.util.concurrent.ForkJoinPool.common.parallelism=2"
+      TERM: dumb
+      JVM_OPTS: -Xmx3g
+      GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2
     steps:
       - checkout
       - restore_cache:
-          key: jars-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}-{{ checksum "build.gradle" }}-{{ checksum "kobaia/build.gradle" }}
+          key: jars-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}-{{ checksum "build.gradle" }}-{{ checksum "kobaia/build.gradle" }}-{{ checksum "sample/build.gradle" }}
       - run:
           name: Download Dependencies
           command: ./gradlew androidDependencies
@@ -22,7 +19,7 @@ jobs:
           paths:
             - ~/.gradle
             - ~/.m2
-          key: jars-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}-{{ checksum "build.gradle" }}-{{ checksum "kobaia/build.gradle" }}
+          key: jars-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}-{{ checksum "build.gradle" }}-{{ checksum "kobaia/build.gradle" }}-{{ checksum "sample/build.gradle" }}
       - run:
           name: Build library and sample app
           command: ./gradlew build

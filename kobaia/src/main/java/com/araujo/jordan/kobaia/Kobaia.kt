@@ -6,11 +6,6 @@ import androidx.test.espresso.IdlingPolicies
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.ActivityTestRule
 import androidx.test.uiautomator.*
-import com.schibsted.spain.barista.interaction.BaristaSleepInteractions.sleep
-import com.schibsted.spain.barista.rule.cleardata.ClearDatabaseRule
-import com.schibsted.spain.barista.rule.cleardata.ClearFilesRule
-import com.schibsted.spain.barista.rule.cleardata.ClearPreferencesRule
-import com.schibsted.spain.barista.rule.flaky.FlakyTestRule
 import org.junit.Assert.assertTrue
 import org.junit.rules.RuleChain
 import org.junit.rules.TestRule
@@ -44,7 +39,7 @@ class Kobaia<T : Activity>(
          * Get UIObject2 device by Text that appear on screen.
          * This method also wait for it for some milliseconds
          * @param text the text that you want to search in your screen
-         * @param wait how long you want to wait for it (Default is 200 milliseconds)
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
          */
         fun byText(
             text: String,
@@ -56,7 +51,7 @@ class Kobaia<T : Activity>(
          * Get UIObject2 device by Pattern that appear on screen.
          * This method also wait for it for some milliseconds
          * @param pattern the Pattern that you want to search in your screen
-         * @param wait how long you want to wait for it (Default is 200 milliseconds)
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
          */
         fun byText(
             pattern: Pattern,
@@ -67,7 +62,7 @@ class Kobaia<T : Activity>(
          * Check if Text is visible on screen.
          * This method also wait for it for some milliseconds
          * @param text the text that you want to search in your screen
-         * @param wait how long you want to wait for it (Default is 200 milliseconds)
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
          */
         fun textExists(
             text: String,
@@ -79,7 +74,7 @@ class Kobaia<T : Activity>(
          * Check if a Pattern is visible on screen.
          * This method also wait for it for some milliseconds
          * @param pattern the pattern that you want to search in your screen
-         * @param wait how long you want to wait for it (Default is 200 milliseconds)
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
          */
         fun textExists(
             pattern: Pattern,
@@ -90,7 +85,7 @@ class Kobaia<T : Activity>(
          * Check if there the given text is content visible on screen.
          * This method also wait for it for some milliseconds
          * @param text the text that you want to search in your screen (could be a text inside another text)
-         * @param wait how long you want to wait for it (Default is 200 milliseconds)
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
          */
         fun containsText(
             text: String,
@@ -102,7 +97,7 @@ class Kobaia<T : Activity>(
          * Check if Description is visible on screen. This is useful to search for Images or EditTexts
          * This method also wait for it for some milliseconds
          * @param text the description that you want to search in your screen
-         * @param wait how long you want to wait for it (Default is 200 milliseconds)
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
          */
         fun descriptionExist(
             text: String,
@@ -114,7 +109,7 @@ class Kobaia<T : Activity>(
          * Check if Description is visible on screen. This is useful to search for Images or EditTexts
          * This method also wait for it for some milliseconds
          * @param pattern the text pattern from the description that you want to search in your screen
-         * @param wait how long you want to wait for it (Default is 200 milliseconds)
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
          */
         fun descriptionExist(
             pattern: Pattern,
@@ -126,7 +121,7 @@ class Kobaia<T : Activity>(
          * Get UIObject2 device by Description that appear on screen. This is useful to search for Images or EditTexts
          * This method also wait for it for some milliseconds
          * @param pattern the text pattern from the description that you want to search in your screen
-         * @param wait how long you want to wait for it (Default is 200 milliseconds)
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
          */
         fun byDescription(
             pattern: Pattern,
@@ -138,7 +133,7 @@ class Kobaia<T : Activity>(
          * Get UIObject2 device by Description that appear on screen. This is useful to search for Images or EditTexts
          * This method also wait for it for some milliseconds
          * @param text the description that you want to search in your screen
-         * @param wait how long you want to wait for it (Default is 200 milliseconds)
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
          */
         fun byDescription(
             text: String,
@@ -149,7 +144,7 @@ class Kobaia<T : Activity>(
          * Click in an UIObject2 by text. This method won't fail your test if this object is not clicked
          * This method also wait for it for some milliseconds
          * @param text the text that you want to be clicked in your screen
-         * @param wait how long you want to wait for it (Default is 200 milliseconds)
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
          */
         fun textClick(
             text: String,
@@ -171,7 +166,7 @@ class Kobaia<T : Activity>(
          * Click in an UIObject2 by pattern. This method won't fail your test if this object is not clicked
          * This method also wait for it for some milliseconds
          * @param pattern the text pattern that you want to be clicked in your screen
-         * @param wait how long you want to wait for it (Default is 200 milliseconds)
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
          */
         fun textClick(
             pattern: Pattern,
@@ -184,7 +179,7 @@ class Kobaia<T : Activity>(
          * This method won't fail your test if this object is not clicked
          * This method also wait for it for some milliseconds
          * @param text the text that you want to be clicked in your screen
-         * @param wait how long you want to wait for it (Default is 200 milliseconds)
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
          */
         fun descriptionClick(
             text: String,
@@ -197,7 +192,7 @@ class Kobaia<T : Activity>(
          * This method won't fail your test if this object is not clicked
          * This method also wait for it for some milliseconds
          * @param pattern the text pattern that you want to be clicked in your screen
-         * @param wait how long you want to wait for it (Default is 200 milliseconds)
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
          */
         fun descriptionClick(
             pattern: Pattern,
@@ -211,7 +206,7 @@ class Kobaia<T : Activity>(
          * while the user is typing in the screen
          * @param fieldDescription The field description that will be put the text
          * @param text the numeric text that will be included
-         * @param wait how long you want to wait for it (Default is 200 milliseconds)
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
          */
         fun slowingTypeNumberInKeyboard(
             fieldDescription: String,
@@ -291,9 +286,6 @@ class Kobaia<T : Activity>(
          * This is useful to search for Images or EditTexts
          * @param pattern that want to be find
          * @param maximumScrolls how many times will scroll until give up (Default: 5)
-         * @param scrollXStartPosition Start X position of the scroll (Default: 500)
-         * @param scrollYStartPosition Start Y position of the scroll (Default: 1500)
-         * @param scrollPixels How many pixels will be scrolled (Default: 300)
          */
         fun scrollUntilFindDescription(
             pattern: Pattern,
@@ -314,7 +306,7 @@ class Kobaia<T : Activity>(
          * Check if a text is visible on screen.
          * This method also wait for it for some milliseconds
          * @param text the text that you want to search in your screen
-         * @param wait how long you want to wait for it (Default is 200 milliseconds)
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
          */
         fun assertTextExist(
             text: String,
@@ -326,7 +318,7 @@ class Kobaia<T : Activity>(
          * Check if a text is visible on screen.
          * This method also wait for it for some milliseconds
          * @param text the text that you want to search in your screen
-         * @param wait how long you want to wait for it (Default is 200 milliseconds)
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
          */
         fun assertTextExist(
             text: Pattern,
@@ -337,7 +329,7 @@ class Kobaia<T : Activity>(
          * Make the app wait
          * @param wait time in milliseconds
          */
-        fun waitTest(wait: Long = DEFAULT_WAITING_TIME) = sleep(wait)
+        fun waitTest(wait: Long = DEFAULT_WAITING_TIME) = KobaiaSleep.sleep(wait)
 
         /**
          * Get the UIDevice using the InstrumentationRegistry

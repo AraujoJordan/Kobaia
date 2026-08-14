@@ -4,29 +4,31 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import kotlinx.android.synthetic.main.activity_login.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
+import androidx.lifecycle.lifecycleScope
+import com.araujo.jordan.kobaiasample.databinding.ActivityLoginBinding
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class LoginActivity : AppCompatActivity() {
 
+    private lateinit var binding: ActivityLoginBinding
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_login)
+        binding = ActivityLoginBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        loginButton.setOnClickListener {
-            GlobalScope.launch(Dispatchers.Main) {
+        binding.loginButton.setOnClickListener {
+            lifecycleScope.launch {
 
-                activityLoginLoadingCircle.visibility = View.VISIBLE
+                binding.activityLoginLoadingCircle.visibility = View.VISIBLE
                 delay(2000)
-                activityLoginLoadingCircle.visibility = View.GONE
+                binding.activityLoginLoadingCircle.visibility = View.GONE
 
 
-                if (email.text.toString() == "right_email@kobaia.com" && pass.text.toString() == "12345678") {
-                    loginCard.visibility = View.INVISIBLE
-                    splashLogged.visibility = View.VISIBLE
+                if (binding.email.text.toString() == "right_email@kobaia.com" && binding.pass.text.toString() == "12345678") {
+                    binding.loginCard.visibility = View.INVISIBLE
+                    binding.splashLogged.visibility = View.VISIBLE
                 } else {
                     Toast.makeText(this@LoginActivity, "Wrong credentials!", Toast.LENGTH_LONG)
                         .show()

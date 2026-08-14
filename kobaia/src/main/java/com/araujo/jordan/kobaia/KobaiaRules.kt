@@ -1,0 +1,211 @@
+package com.araujo.jordan.kobaia
+
+import android.app.Activity
+import android.content.Context
+import android.database.sqlite.SQLiteDatabase
+import android.view.View
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.UiController
+import androidx.test.espresso.ViewAction
+import androidx.test.espresso.matcher.ViewMatchers.isRoot
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
+import androidx.test.runner.lifecycle.Stage
+import org.hamcrest.Matcher
+import org.junit.rules.TestRule
+import org.junit.runner.Description
+import org.junit.runners.model.Statement
+import java.io.File
+import java.util.EnumSet
+
+/**
+ * Base for the rules that wipe part of the state of the app under test, so every test starts
+ * from a clean slate. The state is cleared both before and after the test body runs.
+ */
+internal abstract class ClearDataRule : TestRule {
+
+    /**
+     * The context of the app under test (not the context of the instrumentation APK)
+     */
+    protected val targetContext: Context
+        get() = InstrumentationRegistry.getInstrumentation().targetContext
+
+    /**
+     * Wipe the piece of state this rule is responsible for
+     */
+    protected abstract fun clearData()
+
+    override fun apply(base: Statement, description: Description): Statement =
+        object : Statement() {
+            override fun evaluate() {
+                clearData()
+                base.evaluate()
+                // Deliberately not in a finally block: when a test fails, the state it left
+                // behind survives so it can be inspected.
+                clearData()
+            }
+        }
+}
+
+/**
+ * Clear every SharedPreferences file of the app under test.
+ *
+ * The values are cleared through the SharedPreferences API rather than by deleting the backing
+ * file, so that any instance the app is already holding stops serving the old values from memory.
+ */
+internal class ClearPreferencesRule : ClearDataRule() {
+
+    override fun clearData() {
+        File(targetContext.applicationInfo.dataDir, PREFERENCES_DIRECTORY)
+            .list()
+            .orEmpty()
+            .filter { it.endsWith(PREFERENCES_EXTENSION) }
+            .forEach { fileName ->
+                targetContext
+                    .getSharedPreferences(
+                        fileName.removeSuffix(PREFERENCES_EXTENSION),
+                        Context.MODE_PRIVATE
+                    )
+                    .edit()
+                    .clear()
+                    .commit()
+            }
+    }
+
+    private companion object {
+        private const val PREFERENCES_DIRECTORY = "shared_prefs"
+        private const val PREFERENCES_EXTENSION = ".xml"
+    }
+}
+
+/**
+ * Empty every table of every database of the app under test.
+ *
+ * The rows are deleted but the databases themselves are kept, so an open connection or an
+ * already created schema stays valid for the app while the test runs.
+ */
+internal class ClearDatabaseRule : ClearDataRule() {
+
+    override fun clearData() {
+        targetContext.databaseList()
+            .map { targetContext.getDatabasePath(it) }
+            .filter { it.exists() }
+            .forEach { databaseFile ->
+                SQLiteDatabase.openDatabase(
+                    databaseFile.absolutePath,
+                    null,
+                    SQLiteDatabase.OPEN_READWRITE
+                ).use { database ->
+                    tableNamesOf(database).forEach { database.delete(it, null, null) }
+                }
+            }
+    }
+
+    /**
+     * The tables of a database, leaving out the ones SQLite and Android maintain themselves,
+     * which are not test state and may reject a delete.
+     */
+    private fun tableNamesOf(database: SQLiteDatabase): List<String> {
+        val tableNames = mutableListOf<String>()
+        database.rawQuery(SELECT_TABLE_NAMES, arrayOf(TABLE_TYPE)).use { cursor ->
+            while (cursor.moveToNext()) tableNames.add(cursor.getString(0))
+        }
+        return tableNames.filterNot { it.startsWith(INTERNAL_TABLE_PREFIX) || it == METADATA_TABLE }
+    }
+
+    private companion object {
+        private const val SELECT_TABLE_NAMES = "SELECT name FROM sqlite_master WHERE type = ?"
+        private const val TABLE_TYPE = "table"
+        private const val INTERNAL_TABLE_PREFIX = "sqlite_"
+        private const val METADATA_TABLE = "android_metadata"
+    }
+}
+
+/**
+ * Delete every file the app under test wrote to its files and cache directories.
+ * The directories themselves are left in place, only their contents go.
+ */
+internal class ClearFilesRule : ClearDataRule() {
+
+    override fun clearData() {
+        listOf(targetContext.filesDir, targetContext.cacheDir).forEach { directory ->
+            directory.walkTopDown().filter { it.isFile }.forEach { it.delete() }
+        }
+    }
+}
+
+/**
+ * Re-run a test that fails, to keep an occasional flaky failure from breaking the build.
+ * A test is only reported as failed once every attempt has been used up, and the failure that
+ * is reported is the one from the last attempt.
+ */
+internal class FlakyTestRule : TestRule {
+
+    private var defaultAttempts = 1
+
+    /**
+     * Set how many times a test may run before it is reported as failed
+     * @param attempts the maximum number of attempts (anything below 1 counts as a single run)
+     */
+    fun allowFlakyAttemptsByDefault(attempts: Int) = apply {
+        defaultAttempts = attempts.coerceAtLeast(1)
+    }
+
+    override fun apply(base: Statement, description: Description): Statement =
+        object : Statement() {
+            override fun evaluate() {
+                var lastError: Throwable? = null
+                repeat(defaultAttempts) {
+                    try {
+                        base.evaluate()
+                        return
+                    } catch (error: Throwable) {
+                        lastError = error
+                        // Whatever the failed attempt left on screen has to go, otherwise the
+                        // next attempt starts on top of it instead of on a fresh activity.
+                        finishAllActivitiesOnUiThread()
+                    }
+                }
+                lastError?.let { throw it }
+            }
+        }
+
+    /**
+     * Finish every activity of the app under test that has not been destroyed yet
+     */
+    private fun finishAllActivitiesOnUiThread() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            val activityLifecycleMonitor = ActivityLifecycleMonitorRegistry.getInstance()
+            EnumSet.range(Stage.CREATED, Stage.STOPPED)
+                .flatMap<Stage, Activity> { activityLifecycleMonitor.getActivitiesInStage(it) }
+                .filterNot { it.isFinishing }
+                .forEach { it.finish() }
+        }
+    }
+}
+
+/**
+ * Make the test wait without holding up the main thread, so the app keeps drawing and
+ * processing while the wait is on.
+ */
+internal object KobaiaSleep {
+
+    /**
+     * Wait for the app to go idle and then keep the main thread looping for a while
+     * @param millis how long to wait for, in milliseconds
+     */
+    fun sleep(millis: Long) {
+        onView(isRoot()).perform(sleepViewAction(millis))
+    }
+
+    private fun sleepViewAction(millis: Long) = object : ViewAction {
+        override fun getConstraints(): Matcher<View> = isRoot()
+
+        override fun getDescription() = "Wait for at least $millis millis"
+
+        override fun perform(uiController: UiController, view: View) {
+            uiController.loopMainThreadUntilIdle()
+            uiController.loopMainThreadForAtLeast(millis)
+        }
+    }
+}
