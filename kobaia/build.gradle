@@ -1,5 +1,10 @@
 plugins {
     id 'com.android.library'
+    id 'jacoco'
+}
+
+jacoco {
+    toolVersion = '0.8.13'
 }
 
 android {
@@ -11,6 +16,13 @@ android {
         multiDexEnabled true
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles 'consumer-rules.pro'
+    }
+
+    buildTypes {
+        debug {
+            // Produces the .exec execution data that the jacocoTestReport task reads
+            enableUnitTestCoverage true
+        }
     }
 
     compileOptions {
@@ -36,6 +48,49 @@ dependencies {
     api 'androidx.test.uiautomator:uiautomator:2.4.0'
     api 'junit:junit:4.13.2'
     api 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0'
+}
+
+// Coverage of the unit tests, as the XML report Codecov reads.
+tasks.register('jacocoTestReport', JacocoReport) {
+    dependsOn 'testDebugUnitTest'
+
+    reports {
+        xml.required = true
+        html.required = true
+    }
+
+    def generatedClasses = [
+        '**/R.class',
+        '**/R$*.class',
+        '**/BuildConfig.*',
+        '**/Manifest*.*'
+    ]
+
+    // AGP 9 compiles Kotlin itself and writes to built_in_kotlinc; the kotlin-classes path is
+    // where the separate Kotlin plugin used to put them. Both are listed so the report keeps
+    // working either way, and a directory that does not exist simply contributes nothing.
+    def compiledClasses = [
+        'intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes',
+        'tmp/kotlin-classes/debug',
+        'intermediates/javac/debug/compileDebugJavaWithJavac/classes'
+    ].collect { path ->
+        fileTree(dir: layout.buildDirectory.dir(path).get().asFile, excludes: generatedClasses)
+    }
+
+    classDirectories.setFrom(files(compiledClasses))
+    sourceDirectories.setFrom(files('src/main/java'))
+
+    // Only the directories the unit test task writes its execution data to. Scanning the whole
+    // build directory instead would sweep up the output of unrelated tasks, which Gradle rejects
+    // as an undeclared dependency.
+    def coverageData = [
+        'outputs/unit_test_code_coverage/debugUnitTest',
+        'jacoco'
+    ].collect { path ->
+        fileTree(dir: layout.buildDirectory.dir(path).get().asFile, includes: ['**/*.exec'])
+    }
+
+    executionData.setFrom(files(coverageData))
 }
 
 // Exclude Kotlin files from Javadoc due to an error generating docs from Kotlin files.
