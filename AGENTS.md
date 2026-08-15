@@ -159,6 +159,13 @@ interaction.
 returns `false` and the test carries on; finders return `null`. That is why waits are generous by
 default (5000 ms) — a negative check should pass a short `wait` explicitly.
 
+**Setting text can be refused, and UIAutomator only mentions it in the log.**
+`UiObject2.setText` performs one accessibility action and, when the field says no, writes
+`performAction(ACTION_SET_TEXT) failed` and returns `void`. A Compose `TextField` reached by its
+content description refuses it. `setTextOn` therefore checks the text arrived and types it in when
+it did not — clearing first, so a field that masks what it holds does not end up with the text
+twice. Anything new that writes into a field belongs behind that helper, not on `setText` directly.
+
 **A view can go stale between being found and being used.** The `click`/`longClick` family matches
 every view at once and then acts on them one at a time, so the first one navigating away leaves the
 rest pointing at nodes that no longer exist — `UiObject2` throws `StaleObjectException` for that,
