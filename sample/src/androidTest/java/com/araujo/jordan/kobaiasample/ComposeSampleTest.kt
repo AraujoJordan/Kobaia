@@ -95,12 +95,17 @@ class ComposeSampleTest {
         assertTagDisabled("disabledButton")
     }
 
+    /**
+     * Clearing the field is one action; the screen recomposing to show it is the next frame.
+     * `assertNotVisible` answers in 50 ms by design, which is quick enough to catch the text on
+     * its way out — waiting for it to go is the check that means what this test means.
+     */
     @Test
     fun clearsATaggedTextField() = launch<ComposeSampleActivity> {
         typeIntoTag("Kobaia", tag = "nameField")
         assertVisible("You typed: Kobaia")
         clearTextInTag("nameField")
-        assertNotVisible("You typed: Kobaia")
+        assertTrue("the typed text should go", waitUntilGone("You typed: Kobaia"))
     }
 
     /**

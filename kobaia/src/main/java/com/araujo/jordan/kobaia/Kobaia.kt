@@ -851,8 +851,9 @@ class Kobaia<T : Activity>(
         // ---------------------------------------------------------------------------------------
 
         /**
-         * Set a text on the field with the given content description, without going through the
-         * keyboard. This method won't fail your test if the field is not on screen
+         * Set a text on the field with the given content description, in one go rather than key by
+         * key. A field that refuses to be set that way is typed into instead, so the text arrives
+         * either way. This method won't fail your test if the field is not on screen
          * @param text the text that will be set
          * @param into the description of the field that will receive the text
          * @param wait how long you want to wait for the field (Default is 5000 milliseconds)
@@ -862,7 +863,32 @@ class Kobaia<T : Activity>(
             text: String,
             into: String,
             wait: Long = DEFAULT_WAITING_TIME
-        ): UiObject2? = findDescription(into, wait)?.apply { this.text = text }
+        ): UiObject2? = setTextOn(findDescription(into, wait), text)
+
+        /**
+         * Put a text into a field, and make sure it actually arrived.
+         *
+         * Setting text is a single accessibility action, and a field is free to refuse it — a
+         * Compose `TextField` reached by its content description does exactly that. UIAutomator
+         * writes a line to the log when the action is refused and carries on, so without this the
+         * field stays empty, [type] still hands back the field it found, and the test only
+         * discovers something is wrong several screens later.
+         * @param field the field to fill, or null if it never showed up
+         * @param text the text it should end up containing
+         * @return the field, or null if it never showed up
+         */
+        private fun setTextOn(field: UiObject2?, text: String): UiObject2? {
+            val fieldOnScreen = field ?: return null
+            fieldOnScreen.text = text
+            if (fieldOnScreen.wait(Until.textEquals(text), QUICK_WAITING_TIME) == true) {
+                return fieldOnScreen
+            }
+            // Emptied first, so that a field which took the text but does not read it back — one
+            // that masks a password, say — ends up with the text once rather than twice.
+            fieldOnScreen.clear()
+            typeCharacterByCharacter(fieldOnScreen, text)
+            return fieldOnScreen
+        }
 
         /**
          * Type a text on the field with the given content description one key press at a time.
@@ -904,9 +930,9 @@ class Kobaia<T : Activity>(
         }
 
         /**
-         * Set a text on the field with the given Compose testTag (or View resource id), without
-         * going through the keyboard. This method won't fail your test if the field is not on
-         * screen
+         * Set a text on the field with the given Compose testTag (or View resource id), in one go
+         * rather than key by key. A field that refuses to be set that way is typed into instead.
+         * This method won't fail your test if the field is not on screen
          * @param text the text that will be set
          * @param tag the testTag of the field that will receive the text
          * @param wait how long you want to wait for the field (Default is 5000 milliseconds)
@@ -916,7 +942,7 @@ class Kobaia<T : Activity>(
             text: String,
             tag: String,
             wait: Long = DEFAULT_WAITING_TIME
-        ): UiObject2? = findTag(tag, wait)?.apply { this.text = text }
+        ): UiObject2? = setTextOn(findTag(tag, wait), text)
 
         /**
          * Type a text on the field with the given Compose testTag (or View resource id) one key
@@ -1050,8 +1076,12 @@ class Kobaia<T : Activity>(
                 // rows, as a RecyclerView and a LazyColumn both do, can replace the very node the
                 // last swipe was performed on. Nothing scrollable on screen means the list is
                 // still loading — like every other finder, this one reports that with null.
+                // Waited for properly rather than probed for: a screen that has only just been
+                // launched has not composed its list yet, and a quick look would conclude there is
+                // nothing to scroll a frame before there is. The full wait is only ever paid when
+                // there is genuinely nothing scrollable, which is the miss this reports as null.
                 val scrollableView =
-                    findFirst(By.scrollable(true), QUICK_WAITING_TIME) ?: return null
+                    findFirst(By.scrollable(true), DEFAULT_WAITING_TIME) ?: return null
                 if (scrollableView.scroll(Direction.DOWN, SCROLL_PERCENTAGE)) {
                     swipesThatWentNowhere = 0
                 } else {

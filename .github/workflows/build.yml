@@ -61,7 +61,15 @@ jobs:
           target: google_apis
           arch: x86_64
           disable-animations: true
-          script: ./gradlew :kobaia:jacocoTestReport
+          # Kobaia photographs every failed attempt into the app's external media directory. Those
+          # files are the difference between "the assertion failed" and knowing what was on screen
+          # instead, so they are pulled off the emulator before it is thrown away — and pulled
+          # whatever the tests did, since a red run is exactly when they are worth having.
+          script: |
+            ./gradlew :kobaia:jacocoTestReport || TEST_RESULT=$?
+            adb pull /sdcard/Android/media/com.araujo.jordan.kobaia \
+              sample/build/reports/failure-screenshots || true
+            exit ${TEST_RESULT:-0}
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -78,5 +86,6 @@ jobs:
           name: instrumented-test-reports
           path: |
             sample/build/reports/androidTests/
+            sample/build/reports/failure-screenshots/
             sample/build/outputs/androidTest-results/
           if-no-files-found: ignore
