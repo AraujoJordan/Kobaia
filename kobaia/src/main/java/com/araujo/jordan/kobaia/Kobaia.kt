@@ -69,7 +69,7 @@ class Kobaia<T : Activity>(
         /**
          * How many times the scrolling functions swipe before giving up
          */
-        const val DEFAULT_MAXIMUM_SCROLLS = 10
+        const val DEFAULT_MAXIMUM_SCROLLS = 20
 
         /**
          * How long Espresso may wait for the app under test to go idle, in milliseconds.
@@ -143,12 +143,6 @@ class Kobaia<T : Activity>(
          * top of the screen between two of the checks [scrollUntilFound] makes.
          */
         private const val SCROLL_PERCENTAGE = 0.8f
-
-        /**
-         * How many swipes in a row have to report that they moved nothing before the scrolling
-         * functions believe the list has ended. @see scrollUntilFound
-         */
-        private const val SWIPES_THAT_MEAN_THE_END = 2
 
         /**
          * The buttons of the system permission dialog, whose ids moved from the package installer
@@ -1069,7 +1063,6 @@ class Kobaia<T : Activity>(
          * @param find how the target is looked up between swipes
          */
         private fun scrollUntilFound(maximumScrolls: Int, find: () -> UiObject2?): UiObject2? {
-            var swipesThatWentNowhere = 0
             repeat(maximumScrolls.coerceAtLeast(1)) {
                 find()?.let { return it }
                 // Looked up again on every pass rather than held on to: a list that recycles its
@@ -1082,16 +1075,7 @@ class Kobaia<T : Activity>(
                 // there is genuinely nothing scrollable, which is the miss this reports as null.
                 val scrollableView =
                     findFirst(By.scrollable(true), DEFAULT_WAITING_TIME) ?: return null
-                if (scrollableView.scroll(Direction.DOWN, SCROLL_PERCENTAGE)) {
-                    swipesThatWentNowhere = 0
-                } else {
-                    // A false here is meant to mean "there is no more list to scroll", but it is
-                    // also what comes back when the swipe produced no scroll event within the
-                    // second UIAutomator allows for one — which a list still settling does. One of
-                    // those is not evidence that the list has ended; two in a row is.
-                    swipesThatWentNowhere++
-                    if (swipesThatWentNowhere >= SWIPES_THAT_MEAN_THE_END) return find()
-                }
+                scrollableView.scroll(Direction.DOWN, SCROLL_PERCENTAGE)
             }
             return find()
         }

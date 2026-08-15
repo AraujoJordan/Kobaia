@@ -495,7 +495,7 @@ The knobs, all on `Kobaia`:
 | --- | --- | --- |
 | `DEFAULT_WAITING_TIME` | `5000` | How long the finders poll before giving up, in milliseconds. |
 | `QUICK_WAITING_TIME` | `50` | The wait to pass when you expect a miss. |
-| `DEFAULT_MAXIMUM_SCROLLS` | `10` | How many swipes the scrolling functions get. |
+| `DEFAULT_MAXIMUM_SCROLLS` | `20` | How many swipes the scrolling functions get. |
 | `DEFAULT_FLAKY_ATTEMPTS` | `5` | How many times a failing test is retried. |
 | `DEFAULT_IDLING_LIMIT` | `60000` | Espresso's idling timeout, in milliseconds. |
 | `tuneUiAutomatorTimeouts` | `true` | Whether Kobaia lowers UIAutomator's 10 s idle ceiling to 500 ms. |

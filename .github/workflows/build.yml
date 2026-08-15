@@ -67,8 +67,8 @@ jobs:
           # whatever the tests did, since a red run is exactly when they are worth having.
           script: |
             ./gradlew :kobaia:jacocoTestReport || TEST_RESULT=$?
-            adb pull /sdcard/Android/media/com.araujo.jordan.kobaia \
-              sample/build/reports/failure-screenshots || true
+            mkdir -p sample/build/reports/failure-screenshots
+            adb pull /sdcard/Android/media/com.araujo.jordan.kobaia sample/build/reports/failure-screenshots || true
             exit ${TEST_RESULT:-0}
 
       - name: Upload coverage to Codecov
