@@ -15,17 +15,19 @@ Requires JDK 17 (the build pins `jvmTarget`/`sourceCompatibility` to 17; a newer
 fail).
 
 ```bash
-./gradlew build                              # what CI runs: assemble + lint + unit tests, both modules
+./gradlew build                              # assemble + lint, both modules
 ./gradlew :kobaia:assembleDebug              # the library alone
-./gradlew :kobaia:jacocoTestReport           # coverage XML for Codecov
 ./gradlew lint                               # lint only
 ```
 
-Tests come in two kinds, and the useful ones need a device:
+There are no host-side unit tests, and there is no point adding any: every interaction goes
+through a device. The suite is the sample's instrumented tests, and coverage comes from that same
+run — `:kobaia:jacocoTestReport` measures this module's classes against execution data the sample
+writes on the device.
 
 ```bash
-./gradlew :kobaia:testDebugUnitTest          # host-side; near-empty, they prove nothing about the lib
-./gradlew :sample:connectedDebugAndroidTest  # the real tests — needs a device/emulator attached
+./gradlew :sample:connectedDebugAndroidTest  # the tests — needs a device or emulator attached
+./gradlew :kobaia:jacocoTestReport           # the same run, plus a coverage report for the library
 
 # a single instrumented test class or method
 ./gradlew :sample:connectedDebugAndroidTest \

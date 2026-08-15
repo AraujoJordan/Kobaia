@@ -20,8 +20,8 @@ android {
 
     buildTypes {
         debug {
-            // Produces the .exec execution data that the jacocoTestReport task reads
-            enableUnitTestCoverage true
+            // Instruments the library so the sample's instrumented tests can report on it
+            enableAndroidTestCoverage true
         }
     }
 
@@ -51,9 +51,12 @@ dependencies {
     api 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0'
 }
 
-// Coverage of the unit tests, as the XML report Codecov reads.
+// Coverage of the library comes from the sample's instrumented tests: they are the only tests
+// that exercise it, since every interaction needs a device. So the execution data is written into
+// the sample's build directory during the connected run, while the classes and sources being
+// measured are this module's.
 tasks.register('jacocoTestReport', JacocoReport) {
-    dependsOn 'testDebugUnitTest'
+    dependsOn ':sample:connectedDebugAndroidTest'
 
     reports {
         xml.required = true
@@ -81,17 +84,13 @@ tasks.register('jacocoTestReport', JacocoReport) {
     classDirectories.setFrom(files(compiledClasses))
     sourceDirectories.setFrom(files('src/main/java'))
 
-    // Only the directories the unit test task writes its execution data to. Scanning the whole
-    // build directory instead would sweep up the output of unrelated tasks, which Gradle rejects
-    // as an undeclared dependency.
-    def coverageData = [
-        'outputs/unit_test_code_coverage/debugUnitTest',
-        'jacoco'
-    ].collect { path ->
-        fileTree(dir: layout.buildDirectory.dir(path).get().asFile, includes: ['**/*.exec'])
-    }
-
-    executionData.setFrom(files(coverageData))
+    // Pulled off the device by connectedDebugAndroidTest, one file per device that ran
+    executionData.setFrom(
+        fileTree(
+            dir: rootProject.file('sample/build/outputs/code_coverage/debugAndroidTest/connected'),
+            includes: ['**/*.ec']
+        )
+    )
 }
 
 // Exclude Kotlin files from Javadoc due to an error generating docs from Kotlin files.
