@@ -10,13 +10,23 @@ Kobaia makes UI tests concise, readable, and reliable. Built on UIAutomator, it 
 
 ```kotlin
 @Test
-fun logsIn() = launch<SplashActivity> {
+fun testApp() = launch<SplashActivity> {
+    assertTagVisible("splashTitle")
     assertVisible("Kobaia")
-    click("SKIP")
-    click("LOG IN")
-    type("user@kobaia.com") into "Enter your email"
-    type("12345678") into "Enter your password"
-    click("ENTER")
+    clickTag("welcomeSkipButton")
+
+    assertTagVisible("welcomeGetStartedButton")
+    clickTag("welcomeGetStartedButton")
+
+    assertTagVisible("landingLoginButton")
+    clickTag("landingLoginButton")
+
+    assertTagVisible("loginTitle")
+    typeIntoTag("right_email@kobaia.com", tag = "emailField")
+    typeIntoTag("12345678", tag = "passwordField")
+
+    clickTag("loginButton")
+    assertTagVisible("loggedInText")
     assertVisible("Welcome to Kobaia!")
 }
 ```
