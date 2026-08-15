@@ -2,12 +2,12 @@ package com.araujo.jordan.kobaiasample
 
 import androidx.test.internal.runner.junit4.AndroidJUnit4ClassRunner
 import com.araujo.jordan.kobaia.Kobaia
-import com.araujo.jordan.kobaia.Kobaia.Companion.assertTextExist
-import com.araujo.jordan.kobaia.Kobaia.Companion.descriptionClick
-import com.araujo.jordan.kobaia.Kobaia.Companion.scrollUntilFindText
-import com.araujo.jordan.kobaia.Kobaia.Companion.slowingTypeNumberInKeyboard
-import com.araujo.jordan.kobaia.Kobaia.Companion.textClick
-import com.araujo.jordan.kobaia.Kobaia.Companion.uiDevice
+import com.araujo.jordan.kobaia.Kobaia.Companion.assertVisible
+import com.araujo.jordan.kobaia.Kobaia.Companion.click
+import com.araujo.jordan.kobaia.Kobaia.Companion.clickDescription
+import com.araujo.jordan.kobaia.Kobaia.Companion.device
+import com.araujo.jordan.kobaia.Kobaia.Companion.scrollTo
+import com.araujo.jordan.kobaia.Kobaia.Companion.typeOnKeyboard
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -19,35 +19,53 @@ import org.junit.runner.RunWith
 class KobaiaInstrumentedTest {
 
     @get:Rule
-    val kobaiaRules = Kobaia(KobaiaTestActivity::class.java)
+    val kobaia = Kobaia(KobaiaTestActivity::class.java)
 
     @Test(expected = java.lang.AssertionError::class)
     fun shouldFailIfNotFind() {
-        kobaiaRules.launchActivity()
-        assertTextExist("This text doesn't exist!")
+        kobaia.launchActivity()
+        assertVisible("This text doesn't exist!")
     }
 
     @Test
     fun testShouldContinueIfExceptionIsContained() {
-        kobaiaRules.launchActivity()
+        kobaia.launchActivity()
         try {
-            assertTextExist("This text doesn't exist!")
+            assertVisible("This text doesn't exist!")
         } catch (err: java.lang.AssertionError) {
-            assertTextExist("CLICK ME!")
+            assertVisible("CLICK ME!")
         }
     }
 
     @Test
     fun testApp() {
-        kobaiaRules.launchActivity()
-        textClick("CLICK ME!")
-        descriptionClick("fluffy")
-        textClick("YOU CAN CLICK ME!", 15000)
-        slowingTypeNumberInKeyboard("editField", "133.37")
-        uiDevice()?.pressBack()
-        uiDevice()?.pressHome()
-        textClick("Kobaia")
-        scrollUntilFindText("SCROLL TO CLICK ME!")
-        assertTextExist("SCROLL TO CLICK ME!")
+        kobaia.launchActivity()
+        click("CLICK ME!")
+        clickDescription("fluffy")
+        click("YOU CAN CLICK ME!", 15000)
+        typeOnKeyboard("133.37", into = "editField")
+        device().pressBack()
+        device().pressHome()
+        click("Kobaia")
+        scrollTo("SCROLL TO CLICK ME!")
+        assertVisible("SCROLL TO CLICK ME!")
+    }
+
+    /**
+     * The very same test, written with the infix flavour of the very same functions
+     */
+    @Test
+    fun testAppWithInfixFunctions() {
+        kobaia.launchActivity()
+        kobaia click "CLICK ME!"
+        kobaia clickDescription "fluffy"
+        // the infix functions always use the default wait, so a custom one asks for the plain call
+        click("YOU CAN CLICK ME!", 15000)
+        kobaia typeOnKeyboard "133.37" into "editField"
+        device().pressBack()
+        device().pressHome()
+        kobaia click "Kobaia"
+        kobaia scrollTo "SCROLL TO CLICK ME!"
+        kobaia assertVisible "SCROLL TO CLICK ME!"
     }
 }

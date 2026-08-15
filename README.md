@@ -8,22 +8,38 @@ An android UI test library made in Kotlin
 Kobaia is an Android library that provides an easy way to test UI with Kotlin. Built on top of UIAutomator2, it provides a simple and discoverable API, removing most of the boilerplate and verbosity of common UIAutomator tasks.
 
 ```kotlin
+@Test
+fun testApp() = launch<SplashActivity> {
+    assertVisible("Kobaia")
+    assertVisible("SKIP")
+    assertVisible("NEXT")
+    click("SKIP")
+    click("GET STARTED")
+    click("LOG IN")
+    type("right_email@kobaia.com") into "Enter your email"
+    type("12345678") into "Enter your password"
+    click("ENTER")
+    assertVisible("Welcome to Kobaia!")
+}
+```
+
+No rule to declare, no `launchActivity()` to remember, and nothing to import but `launch` itself.
+If you would rather have a JUnit rule, Kobaia is one — and then every function reads as plain
+English, because they are all **infix functions** too:
+
+```kotlin
 @get:Rule
-val kobaiaRules = Kobaia(SplashActivity::class.java)
+val kobaia = Kobaia(SplashActivity::class.java)
 
 @Test
 fun testApp() {
-    kobaiaRules.launchActivity()
-    assertTextExist("Kobaia")
-    assertTextExist("SKIP")
-    assertTextExist("NEXT")
-    textClick("SKIP")
-    textClick("GET STARTED")
-    textClick("LOG IN")
-    byDescription("Enter your email")?.text = "right_email@kobaia.com"
-    byDescription("Enter your password")?.text = "12345678"
-    textClick("ENTER")
-    assertTextExist("Welcome to Kobaia!")
+    kobaia.launchActivity()
+    kobaia assertVisible "Kobaia"
+    kobaia click "SKIP"
+    kobaia click "LOG IN"
+    kobaia type "12345678" into "Enter your password"
+    kobaia click "ENTER"
+    kobaia assertVisible "Welcome to Kobaia!"
 }
 ```
 
@@ -42,11 +58,68 @@ fun testApp() {
 
 ## 📖 Usage
 
-### 1. Declare the rule
+### 1. Launch the activity
 
-`Kobaia` is a JUnit `TestRule`. Declaring it is the only setup you need — it wires up an
-`ActivityTestRule` for the activity under test, retries flaky tests, and clears the app's
-shared preferences, databases and files between tests.
+`launch` is the whole setup. It clears the app's shared preferences, databases and files, starts
+the activity, runs your test, retries it if it fails, and closes the activity afterwards.
+
+```kotlin
+@RunWith(AndroidJUnit4ClassRunner::class)
+class LoginTest {
+
+    @Test
+    fun logsIn() = launch<SplashActivity> {
+        click("LOG IN")
+        assertVisible("Welcome to Kobaia!")
+    }
+}
+```
+
+Inside the block every interaction is available with no import at all, and `scenario` is there
+for whatever they do not cover:
+
+```kotlin
+@Test
+fun logsIn() = launch<SplashActivity> {
+    scenario.onActivity { activity -> activity.viewModel.seedSession() }
+    click("LOG IN")
+}
+```
+
+You can name the activity instead of passing it as a type argument, which is handy when the test
+reads better that way:
+
+```kotlin
+@Test
+fun logsIn() = SplashActivity::class.launch { … }
+```
+
+And it takes the same optional arguments the rule does:
+
+| Argument | Default | What it does |
+| --- | --- | --- |
+| `startIntent` | `null` | The intent used to start the activity, instead of a plain launch. |
+| `flakyAttempts` | `5` | How many times a failing test is retried before it is reported as failed. |
+| `waitLimit` | `5000` | Espresso's master and idling-resource timeout, in **seconds**. |
+
+```kotlin
+@Test
+fun opensTheDeepLink() = launch<SplashActivity>(
+    startIntent = Intent(context, SplashActivity::class.java).putExtra("skipTutorial", true),
+    flakyAttempts = 1
+) {
+    assertVisible("GET STARTED")
+}
+```
+
+One thing to know: the app's state is cleared *inside* `launch`, which runs after `@Before`. Seed
+whatever your test needs from inside the block, not from a `@Before` method, or it will be wiped
+before the first assertion.
+
+### 2. …or declare the rule
+
+`Kobaia` is also a JUnit `TestRule`, which is what you want when the test has to compose with
+other rules, or to do part of its work before the activity exists.
 
 ```kotlin
 @RunWith(AndroidJUnit4ClassRunner::class)
@@ -54,15 +127,23 @@ class LoginTest {
 
     @get:Rule
     val kobaia = Kobaia(SplashActivity::class.java)
+
+    @Test
+    fun logsIn() {
+        kobaia.launchActivity()
+        kobaia click "LOG IN"
+    }
 }
 ```
 
-The constructor takes two optional arguments:
+The rule wires up an `ActivityTestRule` for the activity under test, retries flaky tests, and
+clears the app's shared preferences, databases and files between tests. Its constructor takes two
+optional arguments:
 
 | Argument | Default | What it does |
 | --- | --- | --- |
-| `DEFAULT_FLAKY_ATTEMPTS` | `5` | How many times a failing test is retried before it is reported as failed. |
-| `LAUNCH_ACTIVITY_AUTOMATICALLY` | `false` | Launch the activity before the test body runs, instead of waiting for `launchActivity()`. |
+| `flakyAttempts` | `5` | How many times a failing test is retried before it is reported as failed. |
+| `launchActivityAutomatically` | `false` | Launch the activity before the test body runs, instead of waiting for `launchActivity()`. |
 
 There is also a reified factory if you prefer it:
 
@@ -71,21 +152,8 @@ There is also a reified factory if you prefer it:
 val kobaia = Kobaia.create<SplashActivity>()
 ```
 
-### 2. Launch the activity
-
-With the default `LAUNCH_ACTIVITY_AUTOMATICALLY = false`, start the activity from inside the
+With the default `launchActivityAutomatically = false`, start the activity from inside the
 test. This lets you set up state (mock server, intent extras, …) first:
-
-```kotlin
-@Test
-fun opensTheApp() {
-    kobaia.launchActivity()
-    // …
-}
-```
-
-`launchActivity()` accepts an optional start `Intent`, and a `waitLimit` (in **seconds**, default
-`5000`) that is applied to Espresso's master and idling-resource timeouts:
 
 ```kotlin
 kobaia.launchActivity(
@@ -96,53 +164,91 @@ kobaia.launchActivity(
 
 The underlying rule is exposed as `kobaia.activityTestRule` if you need the activity instance.
 
-### 3. Import the interactions
+### 3. Call the interactions
 
-Everything else lives on `Kobaia`'s companion object, so import the functions you need
-statically and your tests read like plain sentences:
+Inside a `launch` block they are simply there. Everywhere else they live on `Kobaia`'s companion
+object, so import the ones you need:
 
 ```kotlin
-import com.araujo.jordan.kobaia.Kobaia.Companion.assertTextExist
-import com.araujo.jordan.kobaia.Kobaia.Companion.byDescription
-import com.araujo.jordan.kobaia.Kobaia.Companion.textClick
+import com.araujo.jordan.kobaia.Kobaia.Companion.assertVisible
+import com.araujo.jordan.kobaia.Kobaia.Companion.click
+import com.araujo.jordan.kobaia.Kobaia.Companion.findDescription
 ```
 
-Every function below takes a trailing `wait` parameter — how long, in milliseconds, Kobaia keeps
+Every function takes a trailing `wait` parameter — how long, in milliseconds, Kobaia keeps
 polling the screen before giving up. It defaults to **5000 ms**, which is why you rarely need a
 `Thread.sleep` in a Kobaia test.
+
+### 4. …or call them as infix functions
+
+Every function is also an **infix function** under the same name, on the rule or on the `launch`
+block. Both flavours do exactly the same thing — pick the one you find more readable, and mix them
+freely in the same test.
+
+```kotlin
+click("SKIP")                                   // imported, or inside a launch block
+kobaia click "SKIP"                             // infix, same function
+
+assertVisible("Welcome to Kobaia!")
+kobaia assertVisible "Welcome to Kobaia!"
+
+type("12345678", into = "Enter your password")
+kobaia type "12345678" into "Enter your password"
+```
+
+The infix flavour needs a name on its left, which is what the rule gives you. Inside a `launch`
+block there is none — the receiver is implicit, and `click "SKIP"` on its own is a parse error, so
+use the plain calls there:
+
+```kotlin
+@Test
+fun testApp() = launch<SplashActivity> {
+    click("SKIP")
+    type("12345678") into "Enter your password" // `into`'s left operand is the call itself
+}
+```
+
+Two more things to keep in mind: infix functions always use the default `wait` (call the plain
+function when you need another one), and the ones that return a view need parentheses before you
+can chain on the result:
+
+```kotlin
+(kobaia find "Terms of use")?.longClick()
+click("YOU CAN CLICK ME!", wait = 15000)
+```
 
 ### Finding views
 
 Returns a UIAutomator `UiObject2?`, or `null` if nothing showed up within `wait`.
 
 ```kotlin
-byText("ENTER")                              // first view whose text is exactly "ENTER"
-byText(Pattern.compile("Hello, .*!"))        // …or matches a regex
-byDescription("Enter your email")            // by contentDescription — images, EditTexts, icons
-byDescription(Pattern.compile("avatar_\\d+"))
+find("ENTER")                           // first view whose text is exactly "ENTER"
+find(Pattern.compile("Hello, .*!"))     // …or matches a regex
+findDescription("Enter your email")     // by contentDescription — images, EditTexts, icons
+findDescription(Pattern.compile("avatar_\\d+"))
 ```
 
 Because you get the raw `UiObject2` back, anything UIAutomator can do is one step away:
 
 ```kotlin
-byDescription("Enter your email")?.text = "right_email@kobaia.com"
-byText("Terms of use")?.longClick()
-val price = byDescription("total")?.text
+find("Terms of use")?.longClick()
+val price = findDescription("total")?.text
+(kobaia find "Terms of use")?.longClick()    // same thing, infix
 ```
 
 ### Checking what is on screen
 
-`*Exists` functions return a `Boolean`; `assertTextExist` fails the test with a readable message.
+The checks return a `Boolean`; `assertVisible` fails the test with a readable message.
 
 ```kotlin
-assertTextExist("Welcome to Kobaia!")        // fails: "Welcome to Kobaia! should be visible"
-assertTextExist(Pattern.compile("Welcome, .*"))
+assertVisible("Welcome to Kobaia!")     // fails: "Welcome to Kobaia! should be visible"
+assertVisible(Pattern.compile("Welcome, .*"))
 
-if (textExists("Rate this app", wait = 1000)) textClick("Later")
-textExists(Pattern.compile("\\d+ items"))
-containsText("Welcome")                      // substring match, "Welcome to Kobaia!" counts
-descriptionExist("profile_picture")
-descriptionExist(Pattern.compile("avatar_\\d+"))
+if (isVisible("Rate this app", wait = 1000)) click("Later")
+isVisible(Pattern.compile("\\d+ items"))
+containsText("Welcome")                 // substring match, "Welcome to Kobaia!" counts
+isDescriptionVisible("profile_picture")
+isDescriptionVisible(Pattern.compile("avatar_\\d+"))
 ```
 
 Use a short `wait` for elements you expect *not* to be there — otherwise the negative check pays
@@ -154,74 +260,97 @@ Clicks are forgiving on purpose: if the element never appears, nothing is clicke
 keeps going. Assert first when the click must happen.
 
 ```kotlin
-textClick("SKIP")                            // clicks every view with that exact text
-textClick(Pattern.compile("(?i)skip"))
-textClick("YOU CAN CLICK ME!", wait = 15000) // give a slow screen more time
-containsClick("Log")                         // clicks views containing "Log", e.g. "LOG IN"
-descriptionClick("fluffy")                   // click by contentDescription
-descriptionClick(Pattern.compile("item_\\d+"))
+click("SKIP")                            // clicks every view with that exact text
+click(Pattern.compile("(?i)skip"))
+click("YOU CAN CLICK ME!", wait = 15000) // give a slow screen more time
+clickContaining("Log")                   // clicks views containing "Log", e.g. "LOG IN"
+clickDescription("fluffy")               // click by contentDescription
+clickDescription(Pattern.compile("item_\\d+"))
+```
+
+They click first and report after: each one returns whether it clicked anything, which is enough
+to handle a label that may or may not be there without a second lookup.
+
+```kotlin
+if (!click("Not now")) click("Dismiss")
+```
+
+Filling a field takes the text and the content description of the field it goes into:
+
+```kotlin
+type("right_email@kobaia.com", into = "Enter your email")
+kobaia type "right_email@kobaia.com" into "Enter your email"
 ```
 
 To exercise `TextWatcher`s, formatting masks and other typing-driven logic, type through the
 actual soft keyboard one character at a time:
 
 ```kotlin
-slowingTypeNumberInKeyboard(fieldDescription = "editField", text = "133.37")
+typeOnKeyboard("133.37", into = "editField")
+kobaia typeOnKeyboard "133.37" into "editField"
 ```
 
 ### Scrolling
 
 Each of these scrolls the first scrollable container (`RecyclerView`, `ListView`, `ScrollView`, …)
-until the target is visible, then returns it as a `UiObject2?`.
+until the target is visible, then returns it as a `UiObject2?`. They give up after
+`maximumScrolls` (5 by default) and return `null`.
 
 ```kotlin
-scrollUntilFindText("SCROLL TO CLICK ME!")
-scrollUntilFindPattern(Pattern.compile("Item #\\d+"))
-scrollUntilFindDescription("footer_logo")
-scrollUntilFindDescription(Pattern.compile("row_\\d+"))
+scrollTo("SCROLL TO CLICK ME!")
+scrollTo(Pattern.compile("Item #\\d+"))
+scrollToDescription("footer_logo")
+scrollToDescription(Pattern.compile("row_\\d+"), maximumScrolls = 20)
 ```
 
 They pair naturally with an assertion or a click:
 
 ```kotlin
-scrollUntilFindText("Delete account")
-textClick("Delete account")
+scrollTo("Delete account")
+click("Delete account")
 ```
 
 ### Going outside your app
 
-`uiDevice()` hands you the UIAutomator `UiDevice`, so leaving your app is just another step in
+`device()` hands you the UIAutomator `UiDevice`, so leaving your app is just another step in
 the test — hardware keys, the launcher, the notification shade, other apps:
 
 ```kotlin
-uiDevice()?.pressBack()
-uiDevice()?.pressHome()
-uiDevice()?.openNotification()
-assertTextExist("Your order has shipped")    // reading another app's UI works the same way
-textClick("Kobaia")                          // relaunch from the launcher
+device().pressBack()
+device().pressHome()
+device().openNotification()
+assertVisible("Your order has shipped")  // reading another app's UI works the same way
+click("Kobaia")                          // relaunch from the launcher
 ```
 
 ### Waiting on purpose
 
 Kobaia waits for you, but when you genuinely need to hold (an animation you cannot observe, a
-scheduled job), `waitTest` sleeps without blocking Espresso's idling machinery:
+scheduled job), `waitFor` sleeps without blocking Espresso's idling machinery:
 
 ```kotlin
-waitTest(2000)
+waitFor(2000)
+kobaia waitFor 2000
 ```
 
 ### Handling failures gracefully
 
-`assertTextExist` throws `AssertionError`, so an optional screen — a rating prompt, a cookie
+`assertVisible` throws `AssertionError`, so an optional screen — a rating prompt, a cookie
 banner — can be handled with a plain `try/catch`:
 
 ```kotlin
 try {
-    assertTextExist("Rate this app", wait = 2000)
-    textClick("Not now")
+    assertVisible("Rate this app", wait = 2000)
+    click("Not now")
 } catch (err: AssertionError) {
     // the dialog didn't show up, carry on
 }
+```
+
+…or without the `try/catch` at all — at the cost of the full 5 s wait when the dialog is absent:
+
+```kotlin
+if (kobaia isVisible "Rate this app") kobaia click "Not now"
 ```
 
 ### Putting it together
@@ -230,42 +359,98 @@ try {
 @RunWith(AndroidJUnit4ClassRunner::class)
 class KobaiaSampleTest {
 
-    @get:Rule
-    val kobaiaRules = Kobaia(SplashActivity::class.java)
-
     @Test
-    fun testApp() {
-        kobaiaRules.launchActivity()
-        assertTextExist("Kobaia")
-        assertTextExist("SKIP")
-        assertTextExist("NEXT")
-        textClick("SKIP")
-        textClick("GET STARTED")
-        textClick("LOG IN")
-        byDescription("Enter your email")?.text = "right_email@kobaia.com"
-        byDescription("Enter your password")?.text = "12345678"
-        textClick("ENTER")
-        assertTextExist("Welcome to Kobaia!")
+    fun testApp() = launch<SplashActivity> {
+        assertVisible("Kobaia")
+        assertVisible("SKIP")
+        assertVisible("NEXT")
+        click("SKIP")
+        click("GET STARTED")
+        click("LOG IN")
+        type("right_email@kobaia.com") into "Enter your email"
+        type("12345678") into "Enter your password"
+        click("ENTER")
+        assertVisible("Welcome to Kobaia!")
     }
 }
 ```
 
-A runnable version of this, plus a second test that leaves the app and comes back, lives in the
+The same test with the rule, and with every interaction as an infix function:
+
+```kotlin
+@RunWith(AndroidJUnit4ClassRunner::class)
+class KobaiaSampleTest {
+
+    @get:Rule
+    val kobaia = Kobaia(SplashActivity::class.java)
+
+    @Test
+    fun testApp() {
+        kobaia.launchActivity()
+        kobaia assertVisible "Kobaia"
+        kobaia assertVisible "SKIP"
+        kobaia assertVisible "NEXT"
+        kobaia click "SKIP"
+        kobaia click "GET STARTED"
+        kobaia click "LOG IN"
+        kobaia type "right_email@kobaia.com" into "Enter your email"
+        kobaia type "12345678" into "Enter your password"
+        kobaia click "ENTER"
+        kobaia assertVisible "Welcome to Kobaia!"
+    }
+}
+```
+
+Runnable versions of both, plus a test that leaves the app and comes back, live in the
 [`sample`](sample/src/androidTest/java/com/araujo/jordan/kobaiasample) module.
 
 ### API cheat sheet
 
+Each name works both as a plain call and as an infix one.
+
 | | Functions |
 | --- | --- |
-| **Find** | `byText`, `byDescription` |
-| **Check** | `textExists`, `containsText`, `descriptionExist`, `assertTextExist` |
-| **Click** | `textClick`, `containsClick`, `descriptionClick` |
-| **Type** | `slowingTypeNumberInKeyboard` |
-| **Scroll** | `scrollUntilFindText`, `scrollUntilFindPattern`, `scrollUntilFindDescription` |
-| **Device** | `uiDevice`, `waitTest` |
+| **Find** | `find`, `findDescription` |
+| **Check** | `isVisible`, `containsText`, `isDescriptionVisible`, `assertVisible` |
+| **Click** | `click`, `clickContaining`, `clickDescription` |
+| **Type** | `type … into`, `typeOnKeyboard … into` |
+| **Scroll** | `scrollTo`, `scrollToDescription` |
+| **Device** | `device`, `waitFor` |
+| **Start** | `launch<T> { … }`, `T::class.launch { … }`, `Kobaia(T::class.java)` |
 
-Every `String` overload above has a `java.util.regex.Pattern` twin, except `containsText`,
-`containsClick` and `scrollUntilFindText` (use `scrollUntilFindPattern` for the regex version).
+Every `String` overload above has a `java.util.regex.Pattern` twin, except the substring ones
+(`containsText`, `clickContaining`) and the typing ones. `device()` is the only interaction
+without an infix form — it takes no argument.
+
+### Coming from an older version?
+
+The functions were renamed for consistency in the latest version. The old names still work — they
+are deprecated and delegate to the new ones, and the IDE's *Replace with* quick fix migrates them
+for you.
+
+| Old name | New name |
+| --- | --- |
+| `byText` | `find` |
+| `byDescription` | `findDescription` |
+| `textExists` | `isVisible` |
+| `descriptionExist` | `isDescriptionVisible` |
+| `assertTextExist` | `assertVisible` |
+| `textClick` | `click` |
+| `containsClick` | `clickContaining` |
+| `descriptionClick` | `clickDescription` |
+| `slowingTypeNumberInKeyboard(field, text)` | `typeOnKeyboard(text, into = field)` |
+| `scrollUntilFindText` / `scrollUntilFindPattern` | `scrollTo` |
+| `scrollUntilFindDescription` | `scrollToDescription` |
+| `waitTest` | `waitFor` |
+| `uiDevice` | `device` |
+
+The two constructor arguments were renamed as well, from `DEFAULT_FLAKY_ATTEMPTS` and
+`LAUNCH_ACTIVITY_AUTOMATICALLY` to `flakyAttempts` and `launchActivityAutomatically`. Parameter
+names cannot be deprecated, so this one is a breaking change if you passed them by name.
+
+Nothing about the rule changed otherwise: `@get:Rule val kobaia = Kobaia(…)` plus
+`kobaia.launchActivity()` keeps working exactly as before. `launch { }` is an addition, not a
+replacement.
 
 ## 📦 Installation
 
@@ -328,14 +513,16 @@ And that's it!
 ## 🌟 Extras
 
 **Kobaia brings its test stack with you.** It exposes UIAutomator, Espresso, the AndroidX test
-runner/rules and JUnit as `api` dependencies, so you can mix Espresso assertions into a Kobaia
-test without declaring anything else.
+core/runner/rules and JUnit as `api` dependencies, so you can mix Espresso assertions or an
+`ActivityScenario` into a Kobaia test without declaring anything else.
 
 **Tests are isolated by default.** Shared preferences, databases and files are cleared between
-tests, so a test that logs in cannot leak a session into the next one.
+tests, so a test that logs in cannot leak a session into the next one. A test that fails every
+attempt is the exception: it leaves its state behind so you can inspect it.
 
-**Flaky tests are retried.** Up to 5 attempts by default; tune it with the second constructor
-argument, or set it to `1` in CI if you would rather see the flakiness.
+**Flaky tests are retried.** Up to 5 attempts by default; tune it with `flakyAttempts`, on
+`launch` or on the rule's constructor, or set it to `1` in CI if you would rather see the
+flakiness.
 
 ## 📄 License
 

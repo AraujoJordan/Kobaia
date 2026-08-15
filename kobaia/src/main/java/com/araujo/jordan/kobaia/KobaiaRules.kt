@@ -19,43 +19,47 @@ import java.io.File
 import java.util.EnumSet
 
 /**
- * Base for the rules that wipe part of the state of the app under test, so every test starts
- * from a clean slate. The state is cleared both before and after the test body runs.
+ * What Kobaia does to the app under test around a test, so every test starts from a clean slate.
+ * Both entry points — the [Kobaia] rule and [launch] — go through here.
  */
-internal abstract class ClearDataRule : TestRule {
+internal object AppUnderTest {
 
     /**
      * The context of the app under test (not the context of the instrumentation APK)
      */
-    protected val targetContext: Context
+    private val targetContext: Context
         get() = InstrumentationRegistry.getInstrumentation().targetContext
 
     /**
-     * Wipe the piece of state this rule is responsible for
+     * Wipe every piece of state the app under test can leak into the next test
      */
-    protected abstract fun clearData()
+    fun clearData() {
+        clearPreferences()
+        clearDatabases()
+        clearFiles()
+    }
 
-    override fun apply(base: Statement, description: Description): Statement =
-        object : Statement() {
-            override fun evaluate() {
-                clearData()
-                base.evaluate()
-                // Deliberately not in a finally block: when a test fails, the state it left
-                // behind survives so it can be inspected.
-                clearData()
-            }
+    /**
+     * Finish every activity of the app under test that has not been destroyed yet
+     */
+    fun finishAllActivities() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            val activityLifecycleMonitor = ActivityLifecycleMonitorRegistry.getInstance()
+            EnumSet.range(Stage.CREATED, Stage.STOPPED)
+                .flatMap<Stage, Activity> { activityLifecycleMonitor.getActivitiesInStage(it) }
+                .filterNot { it.isFinishing }
+                .forEach { it.finish() }
         }
-}
+    }
 
-/**
- * Clear every SharedPreferences file of the app under test.
- *
- * The values are cleared through the SharedPreferences API rather than by deleting the backing
- * file, so that any instance the app is already holding stops serving the old values from memory.
- */
-internal class ClearPreferencesRule : ClearDataRule() {
-
-    override fun clearData() {
+    /**
+     * Clear every SharedPreferences file of the app under test.
+     *
+     * The values are cleared through the SharedPreferences API rather than by deleting the backing
+     * file, so that any instance the app is already holding stops serving the old values from
+     * memory.
+     */
+    private fun clearPreferences() {
         File(targetContext.applicationInfo.dataDir, PREFERENCES_DIRECTORY)
             .list()
             .orEmpty()
@@ -72,21 +76,13 @@ internal class ClearPreferencesRule : ClearDataRule() {
             }
     }
 
-    private companion object {
-        private const val PREFERENCES_DIRECTORY = "shared_prefs"
-        private const val PREFERENCES_EXTENSION = ".xml"
-    }
-}
-
-/**
- * Empty every table of every database of the app under test.
- *
- * The rows are deleted but the databases themselves are kept, so an open connection or an
- * already created schema stays valid for the app while the test runs.
- */
-internal class ClearDatabaseRule : ClearDataRule() {
-
-    override fun clearData() {
+    /**
+     * Empty every table of every database of the app under test.
+     *
+     * The rows are deleted but the databases themselves are kept, so an open connection or an
+     * already created schema stays valid for the app while the test runs.
+     */
+    private fun clearDatabases() {
         targetContext.databaseList()
             .map { targetContext.getDatabasePath(it) }
             .filter { it.exists() }
@@ -113,25 +109,39 @@ internal class ClearDatabaseRule : ClearDataRule() {
         return tableNames.filterNot { it.startsWith(INTERNAL_TABLE_PREFIX) || it == METADATA_TABLE }
     }
 
-    private companion object {
-        private const val SELECT_TABLE_NAMES = "SELECT name FROM sqlite_master WHERE type = ?"
-        private const val TABLE_TYPE = "table"
-        private const val INTERNAL_TABLE_PREFIX = "sqlite_"
-        private const val METADATA_TABLE = "android_metadata"
-    }
-}
-
-/**
- * Delete every file the app under test wrote to its files and cache directories.
- * The directories themselves are left in place, only their contents go.
- */
-internal class ClearFilesRule : ClearDataRule() {
-
-    override fun clearData() {
+    /**
+     * Delete every file the app under test wrote to its files and cache directories.
+     * The directories themselves are left in place, only their contents go.
+     */
+    private fun clearFiles() {
         listOf(targetContext.filesDir, targetContext.cacheDir).forEach { directory ->
             directory.walkTopDown().filter { it.isFile }.forEach { it.delete() }
         }
     }
+
+    private const val PREFERENCES_DIRECTORY = "shared_prefs"
+    private const val PREFERENCES_EXTENSION = ".xml"
+    private const val SELECT_TABLE_NAMES = "SELECT name FROM sqlite_master WHERE type = ?"
+    private const val TABLE_TYPE = "table"
+    private const val INTERNAL_TABLE_PREFIX = "sqlite_"
+    private const val METADATA_TABLE = "android_metadata"
+}
+
+/**
+ * Wipe the state of the app under test before and after the test body runs.
+ */
+internal class ClearDataRule : TestRule {
+
+    override fun apply(base: Statement, description: Description): Statement =
+        object : Statement() {
+            override fun evaluate() {
+                AppUnderTest.clearData()
+                base.evaluate()
+                // Deliberately not in a finally block: when a test fails, the state it left
+                // behind survives so it can be inspected.
+                AppUnderTest.clearData()
+            }
+        }
 }
 
 /**
@@ -163,25 +173,12 @@ internal class FlakyTestRule : TestRule {
                         lastError = error
                         // Whatever the failed attempt left on screen has to go, otherwise the
                         // next attempt starts on top of it instead of on a fresh activity.
-                        finishAllActivitiesOnUiThread()
+                        AppUnderTest.finishAllActivities()
                     }
                 }
                 lastError?.let { throw it }
             }
         }
-
-    /**
-     * Finish every activity of the app under test that has not been destroyed yet
-     */
-    private fun finishAllActivitiesOnUiThread() {
-        InstrumentationRegistry.getInstrumentation().runOnMainSync {
-            val activityLifecycleMonitor = ActivityLifecycleMonitorRegistry.getInstance()
-            EnumSet.range(Stage.CREATED, Stage.STOPPED)
-                .flatMap<Stage, Activity> { activityLifecycleMonitor.getActivitiesInStage(it) }
-                .filterNot { it.isFinishing }
-                .forEach { it.finish() }
-        }
-    }
 }
 
 /**
