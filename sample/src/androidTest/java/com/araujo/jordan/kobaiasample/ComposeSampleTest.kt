@@ -2,15 +2,9 @@ package com.araujo.jordan.kobaiasample
 
 import androidx.test.internal.runner.junit4.AndroidJUnit4ClassRunner
 import com.araujo.jordan.kobaia.Kobaia
-import com.araujo.jordan.kobaia.Kobaia.Companion.assertTagChecked
-import com.araujo.jordan.kobaia.Kobaia.Companion.assertTagDisabled
-import com.araujo.jordan.kobaia.Kobaia.Companion.assertTagUnchecked
 import com.araujo.jordan.kobaia.Kobaia.Companion.assertTagVisible
 import com.araujo.jordan.kobaia.Kobaia.Companion.assertVisible
-import com.araujo.jordan.kobaia.Kobaia.Companion.clearTextInTag
 import com.araujo.jordan.kobaia.Kobaia.Companion.clickTag
-import com.araujo.jordan.kobaia.Kobaia.Companion.longClickTag
-import com.araujo.jordan.kobaia.Kobaia.Companion.scrollToTag
 import com.araujo.jordan.kobaia.Kobaia.Companion.typeIntoTag
 import com.araujo.jordan.kobaia.launch
 import org.junit.Rule
@@ -18,36 +12,34 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Kobaia against a Jetpack Compose screen.
- * Covers Compose testTags, text finders, long clicks, checkboxes, disabled state, text typing,
- * and lazy list scrolling.
+ * The sample's Compose login flow, driven end to end by Compose testTags.
+ * Demonstrates finders, assertions, clicks, and typing targeting Modifier.testTag selectors.
  */
 @RunWith(AndroidJUnit4ClassRunner::class)
 class ComposeSampleTest {
 
     @get:Rule
-    val kobaia = Kobaia(ComposeSampleActivity::class.java)
+    val kobaia = Kobaia(SplashActivity::class.java)
 
     @Test
-    fun testApp() = launch<ComposeSampleActivity> {
-        assertTagVisible("greeting")
-        longClickTag("greeting")
-        assertVisible("Kobaia long clicked me!")
+    fun testApp() = launch<SplashActivity> {
+        assertTagVisible("splashTitle")
+        assertVisible("Kobaia")
+        clickTag("welcomeSkipButton")
 
-        assertTagUnchecked("acceptCheckbox")
-        clickTag("acceptCheckbox")
-        assertTagChecked("acceptCheckbox")
-        assertTagDisabled("disabledButton")
+        assertTagVisible("welcomeGetStartedButton")
+        clickTag("welcomeGetStartedButton")
 
-        clickTag("greetButton")
-        assertVisible("Kobaia clicked me!")
+        assertTagVisible("landingLoginButton")
+        clickTag("landingLoginButton")
 
-        typeIntoTag("Kobaia", tag = "nameField")
-        assertVisible("You typed: Kobaia")
-        clearTextInTag("nameField")
+        assertTagVisible("loginTitle")
+        typeIntoTag("right_email@kobaia.com", tag = "emailField")
+        typeIntoTag("12345678", tag = "passwordField")
 
-        scrollToTag("item40")
-        assertTagVisible("item40")
+        clickTag("loginButton")
+        assertTagVisible("loggedInText")
+        assertVisible("Welcome to Kobaia!")
     }
 
     /**
@@ -56,23 +48,22 @@ class ComposeSampleTest {
     @Test
     fun testAppWithInfixFunctions() {
         kobaia.launchActivity()
-        kobaia assertTagVisible "greeting"
-        kobaia longClickTag "greeting"
-        kobaia assertVisible "Kobaia long clicked me!"
+        kobaia assertTagVisible "splashTitle"
+        kobaia assertVisible "Kobaia"
+        kobaia clickTag "welcomeSkipButton"
 
-        kobaia assertTagUnchecked "acceptCheckbox"
-        kobaia clickTag "acceptCheckbox"
-        kobaia assertTagChecked "acceptCheckbox"
-        kobaia assertTagDisabled "disabledButton"
+        kobaia assertTagVisible "welcomeGetStartedButton"
+        kobaia clickTag "welcomeGetStartedButton"
 
-        kobaia clickTag "greetButton"
-        kobaia assertVisible "Kobaia clicked me!"
+        kobaia assertTagVisible "landingLoginButton"
+        kobaia clickTag "landingLoginButton"
 
-        kobaia type "Kobaia" intoTag "nameField"
-        kobaia assertVisible "You typed: Kobaia"
-        kobaia clearTextInTag "nameField"
+        kobaia assertTagVisible "loginTitle"
+        kobaia type "right_email@kobaia.com" intoTag "emailField"
+        kobaia type "12345678" intoTag "passwordField"
 
-        kobaia scrollToTag "item40"
-        kobaia assertTagVisible "item40"
+        kobaia clickTag "loginButton"
+        kobaia assertTagVisible "loggedInText"
+        kobaia assertVisible "Welcome to Kobaia!"
     }
 }

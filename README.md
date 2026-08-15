@@ -228,7 +228,7 @@ Explore the [`sample`](sample) module for working examples across different patt
 
 - [`KobaiaSampleTest`](sample/src/androidTest/java/com/araujo/jordan/kobaiasample/KobaiaSampleTest.kt): End-to-end login flow in Jetpack Compose using `launch`.
 - [`KobaiaInstrumentedTest`](sample/src/androidTest/java/com/araujo/jordan/kobaiasample/KobaiaInstrumentedTest.kt): View-based widgets, countdowns, scrolling, and infix calls with JUnit TestRule.
-- [`ComposeSampleTest`](sample/src/androidTest/java/com/araujo/jordan/kobaiasample/ComposeSampleTest.kt): TestTag selectors, lazy list scrolling, and state assertions on Compose.
+- [`ComposeSampleTest`](sample/src/androidTest/java/com/araujo/jordan/kobaiasample/ComposeSampleTest.kt): End-to-end Compose login flow targeting `Modifier.testTag` selectors with `launch` and infix `TestRule`.
 
 ---
 

@@ -91,14 +91,13 @@ while `launch` clears inside the test method, so `@Before` seeding survives the 
 `launch`.
 
 **The sample is the test suite.** `sample/src/androidTest/…/KobaiaSampleTest.kt` covers the
-`launch` style, `KobaiaInstrumentedTest.kt` covers the rule + infix style, and
-`ComposeSampleTest.kt` covers the testTag family against `ComposeSampleActivity`, all using the
+`launch` style with text finders, `KobaiaInstrumentedTest.kt` covers the rule + infix style on Views,
+and `ComposeSampleTest.kt` covers the testTag family with `launch` and the infix rule, all using the
 activities in `sample/src/main/`. `SplashActivity → WelcomeActivity → LandingActivity →
 LoginActivity` is a login flow, written in **Jetpack Compose**; `KobaiaTestActivity` is a single
 screen of deliberately awkward **View** widgets (a button that only becomes clickable after a 5 s
 countdown, a `TextWatcher`, a scrollable list), and `ComposeSampleActivity` is its Compose
-counterpart (testTags, a `TextField`, a 40-item `LazyColumn`). Keep both toolkits represented —
-that the same test drives either one is the point being demonstrated. New library behaviour should get a case in one of these.
+counterpart. Keep both toolkits represented — that the same test drives either one is the point being demonstrated. New library behaviour should get a case in one of these.
 
 ## Conventions
 
