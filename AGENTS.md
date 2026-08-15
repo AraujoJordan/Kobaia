@@ -104,7 +104,8 @@ that the same test drives either one is the point being demonstrated. New librar
 
 **Renaming a public function is additive.** The old name stays as a `@Deprecated` delegate carrying
 a `ReplaceWith`, so existing test suites keep compiling and the IDE quick fix migrates them. See the
-block at the end of `Kobaia`'s companion object, and the migration table in the README.
+block at the end of `Kobaia`'s companion object. That annotation is the whole migration story — the
+README documents the API as it is now, and deliberately does not list the old names.
 
 **Names describe the action, not the mechanism** — `click`, not `textClick`; `find`, not `byText`.
 The same name has to read well both plainly and infix (`click("SKIP")` / `kobaia click "SKIP"`),
@@ -176,5 +177,5 @@ every other field down with it, permanently. That is why `typeCharacterByCharact
 `KeyCharacterMap` instead of calling `UiDevice.type`, and why `FailureScreenshot` catches
 `Throwable` rather than `Exception` around `ResultsReporter`.
 
-**The README is API documentation.** It carries the cheat sheet, the migration table and an example
-per function group, so an API change is not finished until the README matches.
+**The README is API documentation.** It carries the cheat sheet and an example per function group,
+so an API change is not finished until the README matches.

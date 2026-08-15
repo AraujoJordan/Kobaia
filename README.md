@@ -46,7 +46,6 @@ No rule to declare, no `launchActivity()` to remember, and nothing to import but
 - [Jetpack Compose](#jetpack-compose)
 - [What Kobaia does for you](#what-kobaia-does-for-you)
 - [Sample app](#sample-app)
-- [Migrating from an older version](#migrating-from-an-older-version)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -526,68 +525,16 @@ The [`sample`](sample) module is a runnable app and its test suite.
 ./gradlew :sample:connectedDebugAndroidTest
 ```
 
-## Migrating from an older version
-
-The interactions were renamed for consistency. The old names still compile — they are deprecated
-and delegate to the new ones, and the IDE's *Replace with* quick fix migrates them for you.
-
-| Old | New |
-| --- | --- |
-| `byText` | `find` |
-| `byDescription` | `findDescription` |
-| `textExists` | `isVisible` |
-| `descriptionExist` | `isDescriptionVisible` |
-| `assertTextExist` | `assertVisible` |
-| `textClick` | `click` |
-| `containsClick` | `clickContaining` |
-| `descriptionClick` | `clickDescription` |
-| `slowingTypeNumberInKeyboard(field, text)` | `typeOnKeyboard(text, into = field)` |
-| `scrollUntilFindText` / `scrollUntilFindPattern` | `scrollTo` |
-| `scrollUntilFindDescription` | `scrollToDescription` |
-| `waitTest` | `waitFor` |
-| `uiDevice` | `device` |
-
-Three changes need an edit rather than a quick fix:
-
-- **Constructor arguments** were renamed from `DEFAULT_FLAKY_ATTEMPTS` and
-  `LAUNCH_ACTIVITY_AUTOMATICALLY` to `flakyAttempts` and `launchActivityAutomatically`. Parameter
-  names cannot be deprecated, so passing them by name breaks.
-- **`waitLimit` is milliseconds now**, on both `launchActivity` and `launch`. It used to be handed
-  to a seconds-based API while defaulting to a milliseconds constant, which made the effective
-  timeout 83 minutes; it is now Espresso's own default of 60 seconds. If you passed it explicitly,
-  multiply by 1000.
-- **The clicks return `Boolean`** instead of `Unit?`. Source-compatible if you ignore the result,
-  but the signature changed, so it needs a recompile rather than a jar swap.
-
-`waitFor` also no longer waits for the main thread to go idle before sleeping — it holds for
-exactly as long as you ask. Waiting for idle never returns on a screen that animates continuously,
-which is most Compose screens with a spinner or a focused text field.
-
-Two things changed underneath the same names, and both should be invisible unless you were relying
-on the mechanism rather than the behaviour:
-
-- **`Kobaia.tuneUiAutomatorTimeouts` now lowers a different timeout.** It used to shorten the waits
-  UIAutomator's `UiObject` and `UiScrollable` apply, which Kobaia no longer goes through at all; it
-  now lowers the idle ceiling that applies to every screen read. Same flag, same default, and
-  nothing to change unless you had turned it off.
-- **`typeOnKeyboard` sends key events** instead of hunting for each character as a key on screen.
-  The app still receives one key press per character, so `TextWatcher`s see exactly what they saw
-  before, and capitals, symbols and characters on a keyboard page that is not showing now work.
-
-Nothing else about the rule changed: `@get:Rule val kobaia = Kobaia(…)` plus
-`kobaia.launchActivity()` works exactly as before. `launch { }` is an addition, not a replacement.
-
 ## Contributing
 
-Issues and pull requests are welcome. The sample module is where behaviour is proven — a change to
-an interaction should come with a case in one of its tests, and
+Issues and pull requests are welcome. The sample module is where behaviour is proven, so a change
+to an interaction should come with a case in one of its tests, and both of these should pass before
+you open the PR:
 
 ```bash
-./gradlew build                              # library, sample, lint and unit tests
-./gradlew :sample:connectedDebugAndroidTest  # the real tests, on a device or emulator
+./gradlew build                              # library, sample and lint
+./gradlew :sample:connectedDebugAndroidTest  # the tests, on a device or emulator
 ```
-
-should both pass before you open the PR.
 
 ## License
 
