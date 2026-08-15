@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.library'
     id 'jacoco'
+    id 'com.vanniktech.maven.publish'
 }
 
 jacoco {
@@ -98,3 +99,49 @@ tasks.register('jacocoTestReport', JacocoReport) {
 tasks.withType(Javadoc).configureEach {
     excludes = ['**/*.kt']
 }
+
+mavenPublishing {
+    coordinates(
+        project.findProperty("GROUP") ?: "io.github.araujojordan",
+        project.findProperty("POM_ARTIFACT_ID") ?: "kobaia",
+        project.findProperty("VERSION_NAME") ?: "0.4.2"
+    )
+
+    pom {
+        name = "Kobaia"
+        description = "The Android UI test library that reads like the test you would describe out loud."
+        inceptionYear = "2020"
+        url = "https://github.com/AraujoJordan/Kobaia"
+        licenses {
+            license {
+                name = "The MIT License"
+                url = "https://opensource.org/licenses/MIT"
+                distribution = "repo"
+            }
+        }
+        developers {
+            developer {
+                id = "AraujoJordan"
+                name = "Jordan L. Araujo Jr"
+                url = "https://github.com/AraujoJordan"
+            }
+        }
+        scm {
+            url = "https://github.com/AraujoJordan/Kobaia"
+            connection = "scm:git:git://github.com/AraujoJordan/Kobaia.git"
+            developerConnection = "scm:git:ssh://github.com/AraujoJordan/Kobaia.git"
+        }
+    }
+
+    publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
+    signAllPublications()
+}
+
+signing {
+    required {
+        (project.hasProperty("signingInMemoryKey") || project.hasProperty("signing.keyId") || System.getenv("SIGNING_KEY") != null) &&
+            !project.version.toString().endsWith("SNAPSHOT")
+    }
+}
+
+

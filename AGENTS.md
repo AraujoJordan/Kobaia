@@ -4,7 +4,7 @@ This file provides guidance to coding agents when working with code in this repo
 
 ## What this is
 
-Kobaia is an Android UI test **library** (published to JitPack) built on UIAutomator2, plus a
+Kobaia is an Android UI test **library** (published to Maven Central) built on UIAutomator2, plus a
 `sample` app that exists to exercise it. Everything user-facing is the API surface — a change that
 compiles is not necessarily a change that is acceptable, because every public name is something
 someone's test file already imports.
