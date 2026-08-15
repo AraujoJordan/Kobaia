@@ -9,6 +9,9 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <activity
+            android:name="com.araujo.jordan.kobaiasample.ComposeSampleActivity"
+            android:exported="false" />
+        <activity
             android:name="com.araujo.jordan.kobaiasample.KobaiaTestActivity"
             android:exported="false" />
         <activity

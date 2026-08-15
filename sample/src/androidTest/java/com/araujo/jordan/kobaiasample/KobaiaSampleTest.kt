@@ -5,6 +5,12 @@ import com.araujo.jordan.kobaia.launch
 import org.junit.Test
 import org.junit.runner.RunWith
 
+/**
+ * The sample's login flow, driven end to end.
+ *
+ * Those screens are Jetpack Compose, and nothing in this test says so: the same functions found
+ * them when they were XML layouts.
+ */
 @RunWith(AndroidJUnit4ClassRunner::class)
 class KobaiaSampleTest {
 

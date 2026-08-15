@@ -53,6 +53,16 @@ interface KobaiaInteractions {
     infix fun clickDescription(pattern: Pattern) = Kobaia.clickDescription(pattern)
 
     /**
+     * Click every view with this Compose testTag: `kobaia clickTag "loginButton"`
+     */
+    infix fun clickTag(tag: String) = Kobaia.clickTag(tag)
+
+    /**
+     * Click every view whose Compose testTag matches this pattern
+     */
+    infix fun clickTag(pattern: Pattern) = Kobaia.clickTag(pattern)
+
+    /**
      * The first view with this exact text: `(kobaia find "Terms of use")?.longClick()`
      */
     infix fun find(text: String): UiObject2? = Kobaia.find(text)
@@ -73,6 +83,16 @@ interface KobaiaInteractions {
     infix fun findDescription(pattern: Pattern): UiObject2? = Kobaia.findDescription(pattern)
 
     /**
+     * The first view with this Compose testTag: `(kobaia findTag "total")?.text`
+     */
+    infix fun findTag(tag: String): UiObject2? = Kobaia.findTag(tag)
+
+    /**
+     * The first view whose Compose testTag matches this pattern
+     */
+    infix fun findTag(pattern: Pattern): UiObject2? = Kobaia.findTag(pattern)
+
+    /**
      * Fail the test unless this text is visible: `kobaia assertVisible "Welcome to Kobaia!"`
      */
     infix fun assertVisible(text: String) = Kobaia.assertVisible(text)
@@ -81,6 +101,16 @@ interface KobaiaInteractions {
      * Fail the test unless a text matching this pattern is visible
      */
     infix fun assertVisible(pattern: Pattern) = Kobaia.assertVisible(pattern)
+
+    /**
+     * Fail the test unless this Compose testTag is visible: `kobaia assertTagVisible "welcome"`
+     */
+    infix fun assertTagVisible(tag: String) = Kobaia.assertTagVisible(tag)
+
+    /**
+     * Fail the test unless a Compose testTag matching this pattern is visible
+     */
+    infix fun assertTagVisible(pattern: Pattern) = Kobaia.assertTagVisible(pattern)
 
     /**
      * Whether this text is visible: `if (kobaia isVisible "Rate this app") …`
@@ -108,6 +138,16 @@ interface KobaiaInteractions {
     infix fun isDescriptionVisible(pattern: Pattern): Boolean = Kobaia.isDescriptionVisible(pattern)
 
     /**
+     * Whether this Compose testTag is visible: `kobaia isTagVisible "loginButton"`
+     */
+    infix fun isTagVisible(tag: String): Boolean = Kobaia.isTagVisible(tag)
+
+    /**
+     * Whether a Compose testTag matching this pattern is visible
+     */
+    infix fun isTagVisible(pattern: Pattern): Boolean = Kobaia.isTagVisible(pattern)
+
+    /**
      * Scroll until this text is visible: `kobaia scrollTo "Delete account"`
      */
     infix fun scrollTo(text: String): UiObject2? = Kobaia.scrollTo(text)
@@ -127,6 +167,16 @@ interface KobaiaInteractions {
      */
     infix fun scrollToDescription(pattern: Pattern): UiObject2? =
         Kobaia.scrollToDescription(pattern)
+
+    /**
+     * Scroll until this Compose testTag is visible: `kobaia scrollToTag "footer"`
+     */
+    infix fun scrollToTag(tag: String): UiObject2? = Kobaia.scrollToTag(tag)
+
+    /**
+     * Scroll until a Compose testTag matching this pattern is visible
+     */
+    infix fun scrollToTag(pattern: Pattern): UiObject2? = Kobaia.scrollToTag(pattern)
 
     /**
      * Set a text on a field: `kobaia type "12345678" into "Enter your password"`
@@ -159,6 +209,16 @@ interface KobaiaInteractions {
         infix fun into(fieldDescription: String) {
             if (throughKeyboard) Kobaia.typeOnKeyboard(text, fieldDescription)
             else Kobaia.type(text, fieldDescription)
+        }
+
+        /**
+         * Deliver the text to the field with this Compose testTag (or View resource id):
+         * `kobaia type "12345678" intoTag "passwordField"`
+         * @param tag the testTag of the field that will receive the text
+         */
+        infix fun intoTag(tag: String) {
+            if (throughKeyboard) Kobaia.typeOnKeyboardIntoTag(text, tag)
+            else Kobaia.typeIntoTag(text, tag)
         }
     }
 }

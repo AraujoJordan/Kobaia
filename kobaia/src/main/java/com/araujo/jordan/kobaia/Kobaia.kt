@@ -132,6 +132,30 @@ class Kobaia<T : Activity>(
         ): UiObject2? = findFirst(By.desc(pattern), wait)
 
         /**
+         * Get the first UiObject2 with the given Compose testTag (or View resource id) that
+         * appears on screen.
+         * This method also waits for it for some milliseconds
+         * @param tag the testTag that you want to search in your screen
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         */
+        fun findTag(
+            tag: String,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): UiObject2? = findFirst(By.res(tag), wait)
+
+        /**
+         * Get the first UiObject2 whose Compose testTag (or View resource id) matches the given
+         * pattern.
+         * This method also waits for it for some milliseconds
+         * @param pattern the testTag pattern that you want to search in your screen
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         */
+        fun findTag(
+            pattern: Pattern,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): UiObject2? = findFirst(By.res(pattern), wait)
+
+        /**
          * The first view the selector matches, waiting for it to show up
          * @param selector what the view has to match
          * @param wait how long to wait for it before giving up, in milliseconds
@@ -201,6 +225,28 @@ class Kobaia<T : Activity>(
         ): Boolean = findDescription(pattern, wait) != null
 
         /**
+         * Check if a Compose testTag (or View resource id) is visible on screen.
+         * This method also waits for it for some milliseconds
+         * @param tag the testTag that you want to search in your screen
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         */
+        fun isTagVisible(
+            tag: String,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): Boolean = findTag(tag, wait) != null
+
+        /**
+         * Check if a Compose testTag (or View resource id) matching the pattern is visible.
+         * This method also waits for it for some milliseconds
+         * @param pattern the testTag pattern that you want to search in your screen
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         */
+        fun isTagVisible(
+            pattern: Pattern,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): Boolean = findTag(pattern, wait) != null
+
+        /**
          * Assert that a text is visible on screen, failing the test with a readable message if it
          * is not.
          * This method also waits for it for some milliseconds
@@ -223,6 +269,30 @@ class Kobaia<T : Activity>(
             pattern: Pattern,
             wait: Long = DEFAULT_WAITING_TIME
         ) = assertTrue("$pattern should be visible", isVisible(pattern, wait))
+
+        /**
+         * Assert that a Compose testTag (or View resource id) is visible on screen, failing the
+         * test with a readable message if it is not.
+         * This method also waits for it for some milliseconds
+         * @param tag the testTag that you want to search in your screen
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         */
+        fun assertTagVisible(
+            tag: String,
+            wait: Long = DEFAULT_WAITING_TIME
+        ) = assertTrue("A view tagged $tag should be visible", isTagVisible(tag, wait))
+
+        /**
+         * Assert that a Compose testTag (or View resource id) matching the pattern is visible on
+         * screen, failing the test with a readable message if it is not.
+         * This method also waits for it for some milliseconds
+         * @param pattern the testTag pattern that you want to search in your screen
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         */
+        fun assertTagVisible(
+            pattern: Pattern,
+            wait: Long = DEFAULT_WAITING_TIME
+        ) = assertTrue("A view tagged $pattern should be visible", isTagVisible(pattern, wait))
 
         // ---------------------------------------------------------------------------------------
         // Clicking
@@ -296,6 +366,32 @@ class Kobaia<T : Activity>(
         ): Boolean = clickAll(By.desc(pattern), wait)
 
         /**
+         * Click every UiObject2 with the given Compose testTag (or View resource id). This method
+         * won't fail your test if nothing is clicked
+         * This method also waits for it for some milliseconds
+         * @param tag the testTag of what you want to be clicked in your screen
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         * @return whether anything was clicked at all
+         */
+        fun clickTag(
+            tag: String,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): Boolean = clickAll(By.res(tag), wait)
+
+        /**
+         * Click every UiObject2 whose Compose testTag (or View resource id) matches the pattern.
+         * This method won't fail your test if nothing is clicked
+         * This method also waits for it for some milliseconds
+         * @param pattern the testTag pattern of what you want to be clicked in your screen
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         * @return whether anything was clicked at all
+         */
+        fun clickTag(
+            pattern: Pattern,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): Boolean = clickAll(By.res(pattern), wait)
+
+        /**
          * Click every view the selector matches, waiting for them to show up
          * @param selector what the views have to match
          * @param wait how long to wait for them before giving up, in milliseconds
@@ -338,13 +434,51 @@ class Kobaia<T : Activity>(
             text: String,
             into: String,
             wait: Long = DEFAULT_WAITING_TIME
-        ) {
-            findDescription(into, wait)?.click()
+        ) = typeCharacterByCharacter(findDescription(into, wait), text, wait)
+
+        /**
+         * Tap a field open and then tap out its text on the soft keyboard, one key at a time
+         * @param field the field to type into, or null if it never showed up
+         * @param text the text to type
+         * @param wait how long to wait for the keyboard to come up
+         */
+        private fun typeCharacterByCharacter(field: UiObject2?, text: String, wait: Long) {
+            field?.click()
             device().waitForIdle(wait) // wait for keyboard
             text.forEach { character ->
                 find(character.toString(), SHORT_WAITING_TIME)?.click()
             }
         }
+
+        /**
+         * Set a text on the field with the given Compose testTag (or View resource id), without
+         * going through the keyboard. This method won't fail your test if the field is not on
+         * screen
+         * @param text the text that will be set
+         * @param tag the testTag of the field that will receive the text
+         * @param wait how long you want to wait for the field (Default is 5000 milliseconds)
+         * @return the field that received the text, or null if it never showed up
+         */
+        fun typeIntoTag(
+            text: String,
+            tag: String,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): UiObject2? = findTag(tag, wait)?.apply { this.text = text }
+
+        /**
+         * Type a text on the field with the given Compose testTag (or View resource id) by tapping
+         * the soft keyboard, one character at a time.
+         * This function is useful to test text change listeners or other types of dynamic changes
+         * while the user is typing in the screen
+         * @param text the text that will be typed (its characters have to be keys of the keyboard)
+         * @param tag the testTag of the field that will receive the text
+         * @param wait how long you want to wait for the field and the keyboard (Default is 5000 milliseconds)
+         */
+        fun typeOnKeyboardIntoTag(
+            text: String,
+            tag: String,
+            wait: Long = DEFAULT_WAITING_TIME
+        ) = typeCharacterByCharacter(findTag(tag, wait), text, wait)
 
         // ---------------------------------------------------------------------------------------
         // Scrolling
@@ -410,6 +544,36 @@ class Kobaia<T : Activity>(
             scrollTarget = UiSelector().descriptionMatches(pattern.pattern()),
             maximumScrolls = maximumScrolls
         ) { findDescription(pattern, SHORT_WAITING_TIME) }
+
+        /**
+         * Scroll the first scrollable view (LazyColumn, RecyclerView, ListView, ScrollView, …)
+         * until a Compose testTag (or View resource id) is visible.
+         * @param tag the testTag that you want to find
+         * @param maximumScrolls how many times it will scroll until give up (Default: 5)
+         * @return the view, or null if it was not reached
+         */
+        fun scrollToTag(
+            tag: String,
+            maximumScrolls: Int = DEFAULT_MAXIMUM_SCROLLS
+        ): UiObject2? = scrollUntilFound(
+            scrollTarget = UiSelector().resourceId(tag),
+            maximumScrolls = maximumScrolls
+        ) { findTag(tag, SHORT_WAITING_TIME) }
+
+        /**
+         * Scroll the first scrollable view (LazyColumn, RecyclerView, ListView, ScrollView, …)
+         * until a Compose testTag (or View resource id) matching the pattern is visible.
+         * @param pattern the testTag pattern that you want to find
+         * @param maximumScrolls how many times it will scroll until give up (Default: 5)
+         * @return the view, or null if it was not reached
+         */
+        fun scrollToTag(
+            pattern: Pattern,
+            maximumScrolls: Int = DEFAULT_MAXIMUM_SCROLLS
+        ): UiObject2? = scrollUntilFound(
+            scrollTarget = UiSelector().resourceIdMatches(pattern.pattern()),
+            maximumScrolls = maximumScrolls
+        ) { findTag(pattern, SHORT_WAITING_TIME) }
 
         /**
          * Scroll the first scrollable view towards a target, checking after every scroll whether

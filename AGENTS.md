@@ -52,6 +52,15 @@ The `String` and `Pattern` overloads, and the text/description variants, all fun
 private `BySelector` helpers — `findFirst` and `clickAll` — so a behaviour change belongs in those,
 not in five overloads.
 
+**Three families of selector.** Every interaction comes in a text flavour (`find`, `click`), a
+content-description flavour (`findDescription`, `clickDescription`) and a testTag flavour
+(`findTag`, `clickTag`) — the last one is how Compose is supported, since `Modifier.testTag`
+surfaces in the accessibility tree as a resource id once the app opts in with
+`semantics { testTagsAsResourceId = true }`. Nothing about Compose needs a Compose dependency in
+the library: UIAutomator reads the accessibility tree, so a `Text` and a `TextView` look the same
+from here. The Compose dependencies in `sample/build.gradle` (and the Compose compiler plugin in
+the root build file) exist only so the sample can prove it.
+
 **`KobaiaInteractions.kt` — one declaration serves both call styles.** Each interaction appears
 once more here as an `infix fun` that delegates to the companion. A Kotlin infix member is also
 callable normally, so this single declaration provides `kobaia click "SKIP"` *and* `click("SKIP")`.
@@ -74,11 +83,14 @@ while `launch` clears inside the test method, so `@Before` seeding survives the 
 `launch`.
 
 **The sample is the test suite.** `sample/src/androidTest/…/KobaiaSampleTest.kt` covers the
-`launch` style and `KobaiaInstrumentedTest.kt` covers the rule + infix style, against the
-activities in `sample/src/main/`. `SplashActivity → LandingActivity → LoginActivity →
-WelcomeActivity` is a login flow; `KobaiaTestActivity` is a single screen of deliberately awkward
-widgets (a button that only becomes clickable after a 5 s countdown, a `TextWatcher`, a scrollable
-list). New library behaviour should get a case in one of these.
+`launch` style, `KobaiaInstrumentedTest.kt` covers the rule + infix style, and
+`ComposeSampleTest.kt` covers the testTag family against `ComposeSampleActivity`, all using the
+activities in `sample/src/main/`. `SplashActivity → WelcomeActivity → LandingActivity →
+LoginActivity` is a login flow, written in **Jetpack Compose**; `KobaiaTestActivity` is a single
+screen of deliberately awkward **View** widgets (a button that only becomes clickable after a 5 s
+countdown, a `TextWatcher`, a scrollable list), and `ComposeSampleActivity` is its Compose
+counterpart (testTags, a `TextField`, a 40-item `LazyColumn`). Keep both toolkits represented —
+that the same test drives either one is the point being demonstrated. New library behaviour should get a case in one of these.
 
 ## Conventions
 

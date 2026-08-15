@@ -55,6 +55,8 @@ fun testApp() {
    * Kobaia wait your UI be visible in the screen. Animations, long processes and networks requests doesn't need wait/sleep threads workarounds.
 3. Interact with elements outside your app
    * Close the app and open and read an push notification? Or maybe test share a text message to an messenger app? It's easy with Kobaia.
+4. Views and Jetpack Compose, the same way
+   * Kobaia reads the accessibility tree, not the view hierarchy, so the same test functions drive a `TextView` and a `Text`. Compose `testTag`s are first-class targets.
 
 ## 📖 Usage
 
@@ -310,6 +312,60 @@ scrollTo("Delete account")
 click("Delete account")
 ```
 
+### Jetpack Compose
+
+Kobaia drives Compose the same way it drives Views, because it reads the accessibility tree rather
+than the view hierarchy. A `Text` is found by its text and an `Image` by its `contentDescription`,
+with no setup and no Compose dependency in your test:
+
+```kotlin
+assertVisible("Welcome to Kobaia!")
+click("LOG IN")
+clickDescription("profile_picture")
+```
+
+For `Modifier.testTag`, the app under test has to publish its tags to the accessibility tree.
+It is one `semantics` block on a root composable, and it is the only Compose-specific thing you
+have to do:
+
+```kotlin
+setContent {
+    MaterialTheme {
+        MyScreen(
+            modifier = Modifier
+                .fillMaxSize()
+                .semantics { testTagsAsResourceId = true }   // androidx.compose.ui.semantics
+        )
+    }
+}
+```
+
+With that in place, every tag becomes a first-class target:
+
+```kotlin
+clickTag("loginButton")
+assertTagVisible("welcomeBanner")
+findTag("total")?.text
+typeIntoTag("12345678", tag = "passwordField")
+scrollToTag("item40")                        // scrolls a LazyColumn, like it scrolls a RecyclerView
+
+kobaia clickTag "loginButton"                // and the infix flavour, as always
+kobaia type "12345678" intoTag "passwordField"
+```
+
+Each of these takes a `Pattern` too, and the same functions work on a View's resource id — pass
+the fully qualified name (`"com.example.app:id/login_button"`) instead of a bare tag.
+
+The sample app is the proof. Its login flow — splash, tutorial, landing, login — is written in
+Compose, and the test that drives it
+([`KobaiaSampleTest`](sample/src/androidTest/java/com/araujo/jordan/kobaiasample/KobaiaSampleTest.kt))
+is the one at the top of this README: it did not change by a single line when those screens were
+rewritten from XML layouts to composables.
+[`ComposeSampleTest`](sample/src/androidTest/java/com/araujo/jordan/kobaiasample/ComposeSampleTest.kt)
+covers the testTag family against
+[`ComposeSampleActivity`](sample/src/main/java/com/araujo/jordan/kobaiasample/ComposeSampleActivity.kt),
+and `KobaiaTestActivity` stays on Views so both toolkits keep being exercised.
+
 ### Going outside your app
 
 `device()` hands you the UIAutomator `UiDevice`, so leaving your app is just another step in
@@ -402,7 +458,8 @@ class KobaiaSampleTest {
 ```
 
 Runnable versions of both, plus a test that leaves the app and comes back, live in the
-[`sample`](sample/src/androidTest/java/com/araujo/jordan/kobaiasample) module.
+[`sample`](sample/src/androidTest/java/com/araujo/jordan/kobaiasample) module. The screens that
+test drives are Jetpack Compose; nothing in the test says so.
 
 ### API cheat sheet
 
@@ -410,11 +467,11 @@ Each name works both as a plain call and as an infix one.
 
 | | Functions |
 | --- | --- |
-| **Find** | `find`, `findDescription` |
-| **Check** | `isVisible`, `containsText`, `isDescriptionVisible`, `assertVisible` |
-| **Click** | `click`, `clickContaining`, `clickDescription` |
-| **Type** | `type … into`, `typeOnKeyboard … into` |
-| **Scroll** | `scrollTo`, `scrollToDescription` |
+| **Find** | `find`, `findDescription`, `findTag` |
+| **Check** | `isVisible`, `containsText`, `isDescriptionVisible`, `isTagVisible`, `assertVisible`, `assertTagVisible` |
+| **Click** | `click`, `clickContaining`, `clickDescription`, `clickTag` |
+| **Type** | `type … into`, `type … intoTag`, `typeOnKeyboard … into`, `typeOnKeyboard … intoTag` |
+| **Scroll** | `scrollTo`, `scrollToDescription`, `scrollToTag` |
 | **Device** | `device`, `waitFor` |
 | **Start** | `launch<T> { … }`, `T::class.launch { … }`, `Kobaia(T::class.java)` |
 
