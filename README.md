@@ -288,4 +288,4 @@ Contributions are welcome! Pull requests should ensure all checks and instrument
 
 ## 📄 License
 
-Released under the [MIT License](LICENSE). Copyright © 2020 Jordan L. A. Junior.
+Released under the [MIT License](LICENSE).
