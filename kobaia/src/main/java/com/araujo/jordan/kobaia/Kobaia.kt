@@ -145,6 +145,12 @@ class Kobaia<T : Activity>(
         private const val SCROLL_PERCENTAGE = 0.8f
 
         /**
+         * How many swipes in a row have to report that they moved nothing before the scrolling
+         * functions believe the list has ended. @see scrollUntilFound
+         */
+        private const val SWIPES_THAT_MEAN_THE_END = 2
+
+        /**
          * The buttons of the system permission dialog, whose ids moved from the package installer
          * to the permission controller, and which say "allow" in several different ways
          */
@@ -1037,6 +1043,7 @@ class Kobaia<T : Activity>(
          * @param find how the target is looked up between swipes
          */
         private fun scrollUntilFound(maximumScrolls: Int, find: () -> UiObject2?): UiObject2? {
+            var swipesThatWentNowhere = 0
             repeat(maximumScrolls.coerceAtLeast(1)) {
                 find()?.let { return it }
                 // Looked up again on every pass rather than held on to: a list that recycles its
@@ -1045,8 +1052,16 @@ class Kobaia<T : Activity>(
                 // still loading — like every other finder, this one reports that with null.
                 val scrollableView =
                     findFirst(By.scrollable(true), QUICK_WAITING_TIME) ?: return null
-                // The end of the list: one last look at what that final swipe brought into view.
-                if (!scrollableView.scroll(Direction.DOWN, SCROLL_PERCENTAGE)) return find()
+                if (scrollableView.scroll(Direction.DOWN, SCROLL_PERCENTAGE)) {
+                    swipesThatWentNowhere = 0
+                } else {
+                    // A false here is meant to mean "there is no more list to scroll", but it is
+                    // also what comes back when the swipe produced no scroll event within the
+                    // second UIAutomator allows for one — which a list still settling does. One of
+                    // those is not evidence that the list has ended; two in a row is.
+                    swipesThatWentNowhere++
+                    if (swipesThatWentNowhere >= SWIPES_THAT_MEAN_THE_END) return find()
+                }
             }
             return find()
         }
