@@ -5,9 +5,10 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.os.SystemClock
 import android.util.Log
-import androidx.test.uiautomator.Configurator
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
+import androidx.test.uiautomator.Configurator
+import androidx.test.uiautomator.ResultsReporter
 import androidx.test.runner.lifecycle.Stage
 import org.junit.AssumptionViolatedException
 import org.junit.rules.TestRule
@@ -190,6 +191,8 @@ internal fun retryOnFailure(label: String, attempts: Int, attempt: () -> Unit) {
             val attemptNumber = previousAttempts + 1
             val outcome = if (attemptNumber < maximumAttempts) "retrying" else "giving up"
             Log.w(KOBAIA_TAG, "$label failed on attempt $attemptNumber of $maximumAttempts, $outcome", error)
+            // Before anything is torn down: the screen as the test left it is the whole point.
+            FailureScreenshot.capture(label, attemptNumber)
             // Whatever the failed attempt left on screen has to go, otherwise the next attempt
             // starts on top of it instead of on a fresh activity.
             AppUnderTest.finishAllActivities()
@@ -199,12 +202,64 @@ internal fun retryOnFailure(label: String, attempts: Int, attempt: () -> Unit) {
 }
 
 /**
- * UIAutomator's own timeouts, which it applies underneath everything Kobaia does.
+ * A picture of the screen as a failing attempt left it.
  *
- * They are generous by default — ten seconds to resolve a selector, a second of acknowledgement
- * per swipe — and Kobaia already waits for what it looks for, so out of the box every scroll pays
- * both. These are lowered once, before the first test, unless [Kobaia.tuneUiAutomatorTimeouts]
- * says otherwise.
+ * A stack trace says which assertion failed; it does not say what was on screen instead, which for
+ * a UI test is most of the answer. The file is registered with UIAutomator's [ResultsReporter], so
+ * it is reported back to the instrumentation and shows up alongside the test rather than only on
+ * the device, under the app's external media directory.
+ */
+internal object FailureScreenshot {
+
+    /**
+     * Photograph the screen, and never make things worse by trying.
+     *
+     * @param label the test the screenshot belongs to
+     * @param attemptNumber which attempt failed, so the retries do not overwrite each other
+     */
+    fun capture(label: String, attemptNumber: Int) {
+        try {
+            val reporter = ResultsReporter(label)
+            val screenshot = reporter.addNewFile(
+                filename = "${label.asFileName()}-attempt-$attemptNumber.png",
+                title = "$label, failed attempt $attemptNumber"
+            )
+            if (Kobaia.device().takeScreenshot(screenshot)) reporter.reportToInstrumentation()
+        } catch (couldNotCapture: Throwable) {
+            // Deliberately Throwable, and deliberately swallowed. Reporting needs a mounted
+            // external storage, and fails with an Error rather than an Exception when there is
+            // none — which must not become the failure the test reports instead of the real one.
+            Log.w(KOBAIA_TAG, "Could not capture the screen of the failed $label", couldNotCapture)
+        }
+    }
+
+    /**
+     * A test name as something a file system will accept: `logsIn(com.example.LoginTest)` has
+     * brackets in it, and a parameterised test can have anything at all.
+     */
+    private fun String.asFileName() = replace(UNSAFE_IN_A_FILE_NAME, "_").take(FILE_NAME_LIMIT)
+
+    private val UNSAFE_IN_A_FILE_NAME = Regex("[^A-Za-z0-9.-]")
+    private const val FILE_NAME_LIMIT = 100
+}
+
+/**
+ * The wait UIAutomator does underneath every single thing Kobaia asks it for.
+ *
+ * Before reading the screen — every poll of every finder, and every click, text read and state
+ * check on a view already found — UIAutomator waits for the accessibility event stream to fall
+ * quiet for half a second. On a screen that has settled that returns immediately and costs
+ * nothing. On a screen that never settles, which is a spinner, a blinking cursor or most Compose
+ * screens with something in flight, the events never stop, so it waits out its whole budget and
+ * gives up.
+ *
+ * That budget is [Configurator.setWaitForIdleTimeout], and it defaults to **ten seconds**. Left
+ * alone it dwarfs everything Kobaia does: `find(text, wait = 50)` spends ten seconds on a single
+ * look, and the `wait` you passed stops meaning anything at all. Lowered to [IDLE_TIMEOUT], a
+ * settled screen behaves exactly as before and an animating one stops charging for a stillness
+ * that is never coming.
+ *
+ * Applied once, before the first test, unless [Kobaia.tuneUiAutomatorTimeouts] says otherwise.
  */
 internal object UiAutomatorTimeouts {
 
@@ -213,13 +268,14 @@ internal object UiAutomatorTimeouts {
     fun tuneOnce() {
         if (tuned || !Kobaia.tuneUiAutomatorTimeouts) return
         tuned = true
-        Configurator.getInstance()
-            .setWaitForSelectorTimeout(SELECTOR_TIMEOUT)
-            .setScrollAcknowledgmentTimeout(SCROLL_ACKNOWLEDGMENT_TIMEOUT)
+        Configurator.getInstance().waitForIdleTimeout = IDLE_TIMEOUT
     }
 
-    private const val SELECTOR_TIMEOUT = 1000L
-    private const val SCROLL_ACKNOWLEDGMENT_TIMEOUT = 200L
+    /**
+     * Matches the half second of quiet UIAutomator looks for, so a screen that is already still
+     * is never waited on, and one that is moving is given up on rather than waited out.
+     */
+    private const val IDLE_TIMEOUT = 500L
 }
 
 /**

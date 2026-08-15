@@ -2,6 +2,7 @@ package com.araujo.jordan.kobaiasample
 
 import androidx.test.internal.runner.junit4.AndroidJUnit4ClassRunner
 import com.araujo.jordan.kobaia.Kobaia
+import com.araujo.jordan.kobaia.Kobaia.Companion.QUICK_WAITING_TIME
 import com.araujo.jordan.kobaia.Kobaia.Companion.assertTagVisible
 import com.araujo.jordan.kobaia.Kobaia.Companion.assertVisible
 import com.araujo.jordan.kobaia.Kobaia.Companion.click
@@ -14,7 +15,9 @@ import com.araujo.jordan.kobaia.Kobaia.Companion.clearTextInTag
 import com.araujo.jordan.kobaia.Kobaia.Companion.longClickTag
 import com.araujo.jordan.kobaia.Kobaia.Companion.scrollToTag
 import com.araujo.jordan.kobaia.Kobaia.Companion.typeIntoTag
+import com.araujo.jordan.kobaia.Kobaia.Companion.typeOnKeyboardIntoTag
 import com.araujo.jordan.kobaia.launch
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -49,10 +52,33 @@ class ComposeSampleTest {
         assertVisible("You typed: Kobaia")
     }
 
+    /**
+     * The other typing flavour: one key press per character, the way a `TextWatcher` sees a
+     * person type. The capital and the punctuation are the point — they live on keyboard pages
+     * that are not showing, so a `TextField` that receives them proves the keys are sent rather
+     * than tapped on screen.
+     */
+    @Test
+    fun typesOnTheKeyboardIntoATaggedTextField() = launch<ComposeSampleActivity> {
+        typeOnKeyboardIntoTag("Kobaia 2.0!", tag = "nameField")
+        assertVisible("You typed: Kobaia 2.0!")
+    }
+
     @Test
     fun scrollsALazyColumnToATestTag() = launch<ComposeSampleActivity> {
         scrollToTag("item40")
         assertTagVisible("item40")
+    }
+
+    /**
+     * A Compose screen recomposing is exactly the case an idle-based wait cannot survive, so the
+     * settling is measured on the accessibility tree and reported rather than thrown.
+     */
+    @Test
+    fun waitsForTheScreenToSettle() = launch<ComposeSampleActivity> {
+        clickTag("greetButton")
+        assertTrue("the screen should settle after a click", waitForStable())
+        assertVisible("Kobaia clicked me!")
     }
 
     @Test
@@ -77,12 +103,17 @@ class ComposeSampleTest {
         assertNotVisible("You typed: Kobaia")
     }
 
+    /**
+     * The short waits are the point. A rotation destroys and recreates the activity, and Kobaia
+     * does not return from one until the screen has settled — so the recreated composable is
+     * already there, without a finder having to poll for it.
+     */
     @Test
     fun survivesARotation() = launch<ComposeSampleActivity> {
         rotateLandscape()
-        assertTagVisible("greeting")
+        assertTagVisible("greeting", QUICK_WAITING_TIME)
         rotateNatural()
-        assertTagVisible("greeting")
+        assertTagVisible("greeting", QUICK_WAITING_TIME)
     }
 
     /**

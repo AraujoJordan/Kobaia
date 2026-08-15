@@ -116,24 +116,65 @@ Espresso-style idle wait would hang rather than fail. `KobaiaSleep` is a plain s
 reason; Espresso survives only as `IdlingPolicies` in the two launch paths, for users who mix
 Espresso assertions into a test.
 
-**Nothing in the interaction path may wait on main-thread idleness.** Kobaia drives the app from
-outside its process, and a Compose screen with a running animation is never idle, so an
-Espresso-style idle wait hangs rather than fails. `KobaiaSleep` is a plain sleep for that reason;
-Espresso survives only as `IdlingPolicies` in the two launch paths, for users who mix Espresso
-assertions into a test.
+`waitForStable` is the one thing that looks like an exception and is not: it watches the
+accessibility tree rather than the main thread, it is bounded by the caller's `wait`, and a screen
+that never settles makes it return false instead of hanging. Keep both of those — the
+`requireStableScreenshot = false` argument in particular, since comparing pixels would mean a
+blinking cursor counts as motion.
+
+Internally it is used **once**, in `settleAfterRotation`, and the reason is the test for whether it
+belongs anywhere else. UIAutomator returns from a rotation when the display has swapped its width
+and height, which is well before the recreated activity has drawn, so Kobaia would otherwise be
+reporting a state change as finished while the screen is still mid-change. Everywhere else the
+finders already poll for what they want, and stability is both weaker than that and slower: it
+answers "nothing is moving", not "the thing is here". Do not put it in `scrollUntilFound` — a
+500 ms settle per swipe would make scrolling an order of magnitude slower — and do not put it in
+the launch paths, where it would tax every test in the suite for a race the finders already win.
 
 **A miss costs the full `wait`.** Nothing on screen means polling until the timeout, so the
 5000 ms default is what makes suites slow. `QUICK_WAITING_TIME` (50 ms) is the constant to reach
 for when a test probes for something it expects to be absent. The scrolling functions are bounded
 the same way: `maximumScrolls` is a swipe budget, and `scrollUntilFound` checks before every swipe
-rather than delegating to `UiScrollable.scrollIntoView`, which rewinds to the top and swipes up to
-30 times per call. `UiAutomatorTimeouts.tuneOnce()` in `KobaiaRules.kt` lowers UIAutomator's own
-global timeouts (10 s per selector, 1 s per swipe) once from both entry points — leave it applied
-from `Kobaia.apply()` and `launch()`, which are the two places that run before any interaction.
+rather than delegating to a scroll-into-view helper that rewinds to the top and swipes dozens of
+times per call.
+
+**Only the `By`/`UiObject2` half of UIAutomator.** Nothing here goes through `UiObject`,
+`UiSelector` or `UiScrollable` — scrolling finds its container with `By.scrollable(true)` and
+swipes it with `UiObject2.scroll`. Reaching back for the legacy classes would put
+`Configurator`'s `waitForSelectorTimeout` and `scrollAcknowledgmentTimeout` — which only those
+classes read — underneath everything again.
+
+**The idle ceiling is the one that matters, and it is not obvious.** `UiDevice.getWindowRoots()`
+opens with `waitForIdle()`, and so does `UiObject2.getAccessibilityNodeInfo()` — so *every* poll of
+*every* finder, and every click, text read and state check on a view already found, first waits for
+the accessibility events to go quiet for 500 ms, bounded by `Configurator.getWaitForIdleTimeout()`.
+That default is **10 seconds**, which on a screen that never goes quiet is charged in full to a
+`wait` the caller asked to be 50 ms. `UiAutomatorTimeouts.tuneOnce()` lowers it to 500 ms from both
+entry points, and that single line is worth more to suite speed than everything else in this file.
+Leave it applied from `Kobaia.apply()` and `launch()`, the two places that run before any
+interaction.
 
 **Interactions never throw on a miss**, except the `assert*` family. A click that finds nothing
 returns `false` and the test carries on; finders return `null`. That is why waits are generous by
 default (5000 ms) — a negative check should pass a short `wait` explicitly.
+
+**A view can go stale between being found and being used.** The `click`/`longClick` family matches
+every view at once and then acts on them one at a time, so the first one navigating away leaves the
+rest pointing at nodes that no longer exist — `UiObject2` throws `StaleObjectException` for that,
+which would break the rule above. `actOnAll` catches it per view and carries on. Any new
+interaction that acts on a *list* of views needs the same treatment.
+
+**Absence has two meanings and they run opposite ways.** `assertNotVisible` polls `Until.hasObject`
+and fails the moment the view appears, so a longer `wait` makes it *stricter*; `waitUntilGone`
+polls `Until.gone` and returns once the view has left, so a longer `wait` makes it more patient.
+The default waits differ for that reason (50 ms and 5000 ms). Do not "fix" one to match the other.
+
+**Never reach into `androidx.test.uiautomator.internal`, directly or through a helper that does.**
+Its `UtilsKt` resolves an external storage directory in the same class initialiser as its cached
+`UiDevice` and `KeyCharacterMap`, and throws an `Error` when no storage is mounted — which takes
+every other field down with it, permanently. That is why `typeCharacterByCharacter` loads its own
+`KeyCharacterMap` instead of calling `UiDevice.type`, and why `FailureScreenshot` catches
+`Throwable` rather than `Exception` around `ResultsReporter`.
 
 **The README is API documentation.** It carries the cheat sheet, the migration table and an example
 per function group, so an API change is not finished until the README matches.

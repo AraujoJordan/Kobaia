@@ -159,6 +159,28 @@ interface KobaiaInteractions {
     infix fun assertTagNotVisible(tag: String) = Kobaia.assertTagNotVisible(tag)
 
     /**
+     * Wait for a text that is on screen now to go away, and report whether it did:
+     * `kobaia waitUntilGone "Loading…"`
+     */
+    infix fun waitUntilGone(text: String): Boolean = Kobaia.waitUntilGone(text)
+
+    /**
+     * Wait for a text matching this pattern to go away
+     */
+    infix fun waitUntilGone(pattern: Pattern): Boolean = Kobaia.waitUntilGone(pattern)
+
+    /**
+     * Wait for this content description to go away
+     */
+    infix fun waitUntilDescriptionGone(text: String): Boolean =
+        Kobaia.waitUntilDescriptionGone(text)
+
+    /**
+     * Wait for this Compose testTag to go away: `kobaia waitUntilTagGone "loadingSpinner"`
+     */
+    infix fun waitUntilTagGone(tag: String): Boolean = Kobaia.waitUntilTagGone(tag)
+
+    /**
      * Fail the test unless the view with this text is on screen and enabled
      */
     infix fun assertEnabled(text: String) = Kobaia.assertEnabled(text)
@@ -290,7 +312,7 @@ interface KobaiaInteractions {
     infix fun type(text: String) = PendingText(text, throughKeyboard = false)
 
     /**
-     * Type a text on a field through the soft keyboard, one character at a time:
+     * Type a text on a field one key press at a time:
      * `kobaia typeOnKeyboard "133.37" into "editField"`
      */
     infix fun typeOnKeyboard(text: String) = PendingText(text, throughKeyboard = true)
@@ -309,6 +331,12 @@ interface KobaiaInteractions {
      * Hold the test for this many milliseconds: `kobaia waitFor 2000`
      */
     infix fun waitFor(millis: Long) = Kobaia.waitFor(millis)
+
+    /**
+     * Wait for the screen to stop changing, and no longer. Returns whether it settled before the
+     * default wait ran out: `waitForStable()`
+     */
+    fun waitForStable(): Boolean = Kobaia.waitForStable()
 
     /**
      * The UIAutomator device, for everything these functions do not cover

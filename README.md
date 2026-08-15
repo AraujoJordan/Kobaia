@@ -235,6 +235,22 @@ isTagChecked("acceptCheckbox")
 > with the 5 s default is the most common reason a suite crawls. Pass `QUICK_WAITING_TIME` (50 ms)
 > when you expect a miss: `isVisible("Rate this app", wait = QUICK_WAITING_TIME)`.
 
+For something that is on screen **now** and has to leave — a spinner, a splash, a toast — the wait
+runs the other way round:
+
+```kotlin
+waitUntilGone("Loading…")                  // true once it has gone, false if it never did
+waitUntilGone(Pattern.compile("\\d+"))
+waitUntilDescriptionGone("progress_spinner")
+waitUntilTagGone("loadingSpinner")
+```
+
+> **Note**
+> `assertNotVisible` and `waitUntilGone` are not the same check with different endings. A longer
+> `wait` on `assertNotVisible` makes it *stricter* — it fails if the view shows up at any point
+> during it — while `waitUntilGone` is the one that gets more patient. Reach for `assertNotVisible`
+> when something must never appear, and `waitUntilGone` when something has to go.
+
 ### Clicking
 
 ```kotlin
@@ -267,11 +283,12 @@ type("right_email@kobaia.com", into = "Enter your email")   // by contentDescrip
 typeIntoTag("12345678", tag = "passwordField")              // by Compose testTag
 ```
 
-To exercise `TextWatcher`s, formatting masks and other typing-driven logic, go through the real
-soft keyboard, one character at a time:
+To exercise `TextWatcher`s, formatting masks and other typing-driven logic, tap the field open and
+send the text one key press at a time, the way a person types it:
 
 ```kotlin
 typeOnKeyboard("133.37", into = "editField")
+typeOnKeyboardIntoTag("133.37", tag = "amountField")
 ```
 
 ```kotlin
@@ -325,6 +342,10 @@ assertVisible("Welcome to Kobaia!")
 rotateNatural()                            // back to normal, and free to rotate again
 ```
 
+All three return once the rotated screen has settled, not merely once the display has turned, so
+the activity that was destroyed and recreated is on screen before the next line runs. A screen that
+never settles gets two seconds and then the test carries on.
+
 ### Leaving your app
 
 `device()` hands you the raw UIAutomator `UiDevice` for anything the functions above do not cover:
@@ -344,6 +365,21 @@ scheduled job — `waitFor` holds the test for exactly as long as you ask, witho
 ```kotlin
 waitFor(2000)
 ```
+
+When what you are waiting for is "the screen to stop moving", `waitForStable` is the number you do
+not have to guess. It returns as soon as the screen has held still for half a second, and tells you
+whether it settled at all:
+
+```kotlin
+waitForStable()             // up to 5000 ms, like everything else
+waitForStable(wait = 1500)
+```
+
+> **Note**
+> It watches what the app reports to the accessibility tree — not the pixels, and not the main
+> thread. A screen that animates forever never settles: that costs the full wait and returns
+> `false`, the same way a finder that misses does. It never hangs, and it never fails your test on
+> its own.
 
 ### Every function, as an infix function
 
@@ -366,7 +402,8 @@ kobaia waitFor 2000
 ```
 
 The ones that take no argument — `pressBack()`, `allowPermission()`, `rotateLandscape()`,
-`device()` — are plain functions, available on the rule and inside a `launch` block alike.
+`waitForStable()`, `device()` — are plain functions, available on the rule and inside a `launch`
+block alike.
 
 Three things to know: the infix form always uses the default `wait`, it needs a name on its left
 (so `click "SKIP"` on its own is a parse error — inside a `launch` block, use the plain call), and
@@ -432,14 +469,27 @@ its stack trace, so a test that only passes on the third try still leaves a trai
 W Kobaia: logsIn(com.example.LoginTest) failed on attempt 1 of 5, retrying
 ```
 
+**And it photographs the failure.** Every failed attempt is captured before anything is torn down
+and reported back to the instrumentation, so the screen the test actually saw turns up next to the
+result instead of only in your imagination. The files land in the app's external media directory,
+one per attempt:
+
+```
+logsIn.com.example.LoginTest-attempt-1.png
+```
+
 Between attempts it finishes the activities the failed one left behind and waits for them to
 actually go away, so the retry starts on a fresh screen. Tests skipped by `assumeTrue` are not
 retried — the assumption will not become true on the second try.
 
-**It does not wait longer than it has to.** UIAutomator gives itself ten seconds to resolve a
-selector and a second of acknowledgement per swipe, underneath everything Kobaia does. Kobaia
-lowers both once, before your first test, because it already waits for what it looks for. Set
-`Kobaia.tuneUiAutomatorTimeouts = false` to keep the platform defaults.
+**It does not wait longer than it has to.** Before every look at the screen, UIAutomator waits for
+the accessibility events to fall quiet — and gives itself ten seconds to see that happen. On a
+screen that has settled the wait costs nothing, but a Compose screen with an animation running
+never falls quiet, so a `find(text, wait = 50)` spends ten seconds on a single look and the `wait`
+you passed stops meaning anything. Kobaia lowers that ceiling to half a second, once, before your
+first test: a settled screen behaves exactly as it did, and a moving one stops charging for a
+stillness that is never coming. Set `Kobaia.tuneUiAutomatorTimeouts = false` to keep the platform
+default.
 
 The knobs, all on `Kobaia`:
 
@@ -450,7 +500,7 @@ The knobs, all on `Kobaia`:
 | `DEFAULT_MAXIMUM_SCROLLS` | `10` | How many swipes the scrolling functions get. |
 | `DEFAULT_FLAKY_ATTEMPTS` | `5` | How many times a failing test is retried. |
 | `DEFAULT_IDLING_LIMIT` | `60000` | Espresso's idling timeout, in milliseconds. |
-| `tuneUiAutomatorTimeouts` | `true` | Whether Kobaia lowers UIAutomator's global timeouts. |
+| `tuneUiAutomatorTimeouts` | `true` | Whether Kobaia lowers UIAutomator's 10 s idle ceiling to 500 ms. |
 
 One more thing, on your side: turning animations off makes any UI suite faster, Kobaia's included.
 
@@ -512,6 +562,17 @@ Three changes need an edit rather than a quick fix:
 `waitFor` also no longer waits for the main thread to go idle before sleeping — it holds for
 exactly as long as you ask. Waiting for idle never returns on a screen that animates continuously,
 which is most Compose screens with a spinner or a focused text field.
+
+Two things changed underneath the same names, and both should be invisible unless you were relying
+on the mechanism rather than the behaviour:
+
+- **`Kobaia.tuneUiAutomatorTimeouts` now lowers a different timeout.** It used to shorten the waits
+  UIAutomator's `UiObject` and `UiScrollable` apply, which Kobaia no longer goes through at all; it
+  now lowers the idle ceiling that applies to every screen read. Same flag, same default, and
+  nothing to change unless you had turned it off.
+- **`typeOnKeyboard` sends key events** instead of hunting for each character as a key on screen.
+  The app still receives one key press per character, so `TextWatcher`s see exactly what they saw
+  before, and capitals, symbols and characters on a keyboard page that is not showing now work.
 
 Nothing else about the rule changed: `@get:Rule val kobaia = Kobaia(…)` plus
 `kobaia.launchActivity()` works exactly as before. `launch { }` is an addition, not a replacement.

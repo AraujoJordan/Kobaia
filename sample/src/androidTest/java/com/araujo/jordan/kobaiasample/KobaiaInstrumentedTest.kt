@@ -8,9 +8,12 @@ import com.araujo.jordan.kobaia.Kobaia.Companion.clickDescription
 import com.araujo.jordan.kobaia.Kobaia.Companion.device
 import com.araujo.jordan.kobaia.Kobaia.Companion.scrollTo
 import com.araujo.jordan.kobaia.Kobaia.Companion.typeOnKeyboard
+import com.araujo.jordan.kobaia.Kobaia.Companion.waitUntilGone
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.regex.Pattern
 
 /**
  * Simple Kobaia test example
@@ -35,6 +38,21 @@ class KobaiaInstrumentedTest {
         } catch (err: java.lang.AssertionError) {
             assertVisible("CLICK ME!")
         }
+    }
+
+    /**
+     * The button counts itself down — 5, 4, 3 — before it turns into its real label. Waiting for
+     * the digits to leave is waiting for the countdown itself, rather than guessing a number and
+     * sleeping through it.
+     */
+    @Test
+    fun waitsForTheCountdownToFinish() {
+        kobaia.launchActivity()
+        assertTrue(
+            "the countdown should finish",
+            waitUntilGone(Pattern.compile("\\d+"), 15000)
+        )
+        assertVisible("YOU CAN CLICK ME!")
     }
 
     @Test
