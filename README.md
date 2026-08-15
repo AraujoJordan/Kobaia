@@ -39,6 +39,7 @@ No rule to declare, no `launchActivity()` to remember, and nothing to import but
   - [Clicking](#clicking)
   - [Typing](#typing)
   - [Scrolling](#scrolling)
+  - [Device, permissions and rotation](#device-permissions-and-rotation)
   - [Leaving your app](#leaving-your-app)
   - [Waiting on purpose](#waiting-on-purpose)
   - [Every function, as an infix function](#every-function-as-an-infix-function)
@@ -199,7 +200,22 @@ val price = findDescription("total")?.text
 ```kotlin
 assertVisible("Welcome to Kobaia!")        // fails with "Welcome to Kobaia! should be visible"
 assertVisible(Pattern.compile("Welcome, .*"))
+assertDescriptionVisible("profile_picture")
 assertTagVisible("welcomeBanner")
+
+// ...or not?
+assertNotVisible("Wrong credentials!")
+assertDescriptionNotVisible("error_icon")
+assertTagNotVisible("errorBanner")
+```
+
+```kotlin
+// state, for checkboxes, switches and buttons that come and go
+assertEnabled("ENTER")
+assertDisabled("ENTER")
+assertChecked("Remember me")
+assertUnchecked("Remember me")
+assertTagEnabled("loginButton")            // and assertTagDisabled, assertTagChecked, …
 ```
 
 ```kotlin
@@ -208,6 +224,10 @@ isVisible("Rate this app")
 containsText("Welcome")                    // substring, so "Welcome to Kobaia!" counts (no Pattern)
 isDescriptionVisible("profile_picture")
 isTagVisible("welcomeBanner")
+isEnabled("ENTER")
+isChecked("Remember me")
+isTagEnabled("loginButton")
+isTagChecked("acceptCheckbox")
 ```
 
 > **Note**
@@ -224,6 +244,10 @@ click("YOU CAN CLICK ME!", wait = 15_000)  // give a slow screen more time
 clickContaining("Log")                     // "LOG IN" counts (no Pattern)
 clickDescription("fluffy")
 clickTag("loginButton")
+
+longClick("Terms of use")
+longClickDescription("fluffy")
+longClickTag("greeting")
 ```
 
 Clicks are forgiving on purpose: if the view never appears, nothing is clicked and the test carries
@@ -250,6 +274,11 @@ soft keyboard, one character at a time:
 typeOnKeyboard("133.37", into = "editField")
 ```
 
+```kotlin
+clearText(into = "Enter your email")
+clearTextInTag("emailField")
+```
+
 ### Scrolling
 
 ```kotlin
@@ -269,14 +298,40 @@ before every swipe, stop as soon as the container reports the end of the list, a
 > Scrolling searches forward from wherever the list currently sits; it does not rewind to the top
 > first. Scroll back explicitly if your test has already gone past the target.
 
-### Leaving your app
-
-`device()` hands you the UIAutomator `UiDevice`, so stepping outside the app is just another line:
+### Device, permissions and rotation
 
 ```kotlin
-device().pressBack()
-device().pressHome()
-device().openNotification()
+pressBack()
+pressHome()
+pressEnter()
+pressRecentApps()
+closeKeyboard()                            // presses back, so only call it with a keyboard open
+openNotifications()
+```
+
+The runtime permission dialog belongs to the system rather than to your app, which is exactly what
+UIAutomator can reach and Espresso cannot. Both return whether there was a dialog to answer:
+
+```kotlin
+click("Take a photo")
+allowPermission()                          // ...or denyPermission()
+```
+
+Rotation stays frozen until you put it back, so the app cannot quietly rotate mid-test:
+
+```kotlin
+rotateLandscape()
+assertVisible("Welcome to Kobaia!")
+rotateNatural()                            // back to normal, and free to rotate again
+```
+
+### Leaving your app
+
+`device()` hands you the raw UIAutomator `UiDevice` for anything the functions above do not cover:
+
+```kotlin
+pressHome()
+device().openQuickSettings()
 assertVisible("Your order has shipped")    // reading another app's UI works the same way
 click("Kobaia")                            // relaunch from the launcher
 ```
@@ -303,8 +358,15 @@ kobaia scrollTo "Delete account"
 kobaia type "12345678" into "Enter your password"
 kobaia type "12345678" intoTag "passwordField"
 kobaia clickTag "loginButton"
+kobaia longClick "Terms of use"
+kobaia assertNotVisible "Wrong credentials!"
+kobaia assertTagChecked "acceptCheckbox"
+kobaia clearText "Enter your email"
 kobaia waitFor 2000
 ```
+
+The ones that take no argument — `pressBack()`, `allowPermission()`, `rotateLandscape()`,
+`device()` — are plain functions, available on the rule and inside a `launch` block alike.
 
 Three things to know: the infix form always uses the default `wait`, it needs a name on its left
 (so `click "SKIP"` on its own is a parse error — inside a `launch` block, use the plain call), and

@@ -54,6 +54,12 @@ The `String` and `Pattern` overloads, and the text/description variants, all fun
 private `BySelector` helpers — `findFirst` and `clickAll` — so a behaviour change belongs in those,
 not in five overloads.
 
+**What cannot exist here.** Kobaia sees the accessibility tree, not the view hierarchy, so
+anything needing the `View` object — drawables, backgrounds, text colours, `SeekBar` progress,
+`TextInputLayout` errors, adapter positions — is out of reach by construction, however often it is
+asked for. What UIAutomator can reach and Espresso-based libraries cannot is the other half of the
+trade: system permission dialogs, rotation, the notification shade, other apps.
+
 **Three families of selector.** Every interaction comes in a text flavour (`find`, `click`), a
 content-description flavour (`findDescription`, `clickDescription`) and a testTag flavour
 (`findTag`, `clickTag`) — the last one is how Compose is supported, since `Modifier.testTag`

@@ -8,7 +8,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -50,13 +53,37 @@ class ComposeSampleActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ComposeSampleScreen(modifier: Modifier = Modifier) {
     var greeting by remember { mutableStateOf("Tap the button") }
     var typed by remember { mutableStateOf("") }
+    var accepted by remember { mutableStateOf(false) }
 
     Column(modifier.padding(16.dp)) {
-        Text(text = greeting, modifier = Modifier.testTag("greeting"))
+        Text(
+            text = greeting,
+            modifier = Modifier
+                .testTag("greeting")
+                .combinedClickable(
+                    onClick = { },
+                    onLongClick = { greeting = "Kobaia long clicked me!" }
+                )
+        )
+
+        Checkbox(
+            checked = accepted,
+            onCheckedChange = { accepted = it },
+            modifier = Modifier.testTag("acceptCheckbox")
+        )
+
+        Button(
+            onClick = { },
+            enabled = false,
+            modifier = Modifier.testTag("disabledButton")
+        ) {
+            Text("CANNOT CLICK ME")
+        }
 
         Button(
             onClick = { greeting = "Kobaia clicked me!" },

@@ -13,6 +13,7 @@ import androidx.test.uiautomator.UiObjectNotFoundException
 import androidx.test.uiautomator.UiScrollable
 import androidx.test.uiautomator.UiSelector
 import androidx.test.uiautomator.Until
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.rules.RuleChain
 import org.junit.rules.TestRule
@@ -102,6 +103,19 @@ class Kobaia<T : Activity>(
          * blinking text cursor never goes idle, so waiting for idle is waiting for the timeout.
          */
         private const val KEYBOARD_WAITING_TIME = 500L
+
+        /**
+         * The buttons of the system permission dialog, whose ids moved from the package installer
+         * to the permission controller, and which say "allow" in several different ways
+         */
+        private val ALLOW_PERMISSION_BUTTONS: Pattern =
+            Pattern.compile(".*:id/permission_allow.*button")
+        private val DENY_PERMISSION_BUTTONS: Pattern =
+            Pattern.compile(".*:id/permission_deny.*button")
+        private val ALLOW_PERMISSION_LABELS: Pattern =
+            Pattern.compile("(?i)^(allow|while using the app|only this time|ok)$")
+        private val DENY_PERMISSION_LABELS: Pattern =
+            Pattern.compile("(?i)^(deny|don.t allow|no thanks)$")
 
         inline fun <reified T : Activity> create(): Kobaia<T> = create(T::class.java)
 
@@ -330,6 +344,170 @@ class Kobaia<T : Activity>(
             wait: Long = DEFAULT_WAITING_TIME
         ) = assertTrue("A view tagged $pattern should be visible", isTagVisible(pattern, wait))
 
+        /**
+         * Assert that a content description is visible on screen, failing the test with a
+         * readable message if it is not.
+         * @param text the description that you want to search in your screen
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         */
+        fun assertDescriptionVisible(
+            text: String,
+            wait: Long = DEFAULT_WAITING_TIME
+        ) = assertTrue("A view described as $text should be visible", isDescriptionVisible(text, wait))
+
+        /**
+         * Assert that a text is **not** on screen.
+         *
+         * The wait is short by default: confirming an absence means polling until the wait runs
+         * out, so the five second default would be paid in full every time. Pass a longer one when
+         * you are waiting for something to go away rather than checking it never arrived.
+         * @param text the text that should not be in your screen
+         * @param wait how long to keep looking before concluding it is absent (Default is 50 milliseconds)
+         */
+        fun assertNotVisible(
+            text: String,
+            wait: Long = QUICK_WAITING_TIME
+        ) = assertFalse("$text should not be visible", isVisible(text, wait))
+
+        /**
+         * Assert that a text pattern is **not** on screen. @see assertNotVisible
+         * @param pattern the pattern that should not be in your screen
+         * @param wait how long to keep looking before concluding it is absent (Default is 50 milliseconds)
+         */
+        fun assertNotVisible(
+            pattern: Pattern,
+            wait: Long = QUICK_WAITING_TIME
+        ) = assertFalse("$pattern should not be visible", isVisible(pattern, wait))
+
+        /**
+         * Assert that a content description is **not** on screen. @see assertNotVisible
+         * @param text the description that should not be in your screen
+         * @param wait how long to keep looking before concluding it is absent (Default is 50 milliseconds)
+         */
+        fun assertDescriptionNotVisible(
+            text: String,
+            wait: Long = QUICK_WAITING_TIME
+        ) = assertFalse(
+            "A view described as $text should not be visible",
+            isDescriptionVisible(text, wait)
+        )
+
+        /**
+         * Assert that a Compose testTag (or View resource id) is **not** on screen.
+         * @see assertNotVisible
+         * @param tag the testTag that should not be in your screen
+         * @param wait how long to keep looking before concluding it is absent (Default is 50 milliseconds)
+         */
+        fun assertTagNotVisible(
+            tag: String,
+            wait: Long = QUICK_WAITING_TIME
+        ) = assertFalse("A view tagged $tag should not be visible", isTagVisible(tag, wait))
+
+        // ---------------------------------------------------------------------------------------
+        // State
+        // ---------------------------------------------------------------------------------------
+
+        /**
+         * Whether the first view with this text is enabled. A view that never showed up counts as
+         * not enabled — use [assertEnabled] when the difference matters
+         * @param text the text of the view to look at
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         */
+        fun isEnabled(
+            text: String,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): Boolean = find(text, wait)?.isEnabled == true
+
+        /**
+         * Whether the first view with this Compose testTag (or View resource id) is enabled.
+         * @param tag the testTag of the view to look at
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         */
+        fun isTagEnabled(
+            tag: String,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): Boolean = findTag(tag, wait)?.isEnabled == true
+
+        /**
+         * Whether the first view with this text is checked — a checkbox, a switch, a radio button.
+         * @param text the text of the view to look at
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         */
+        fun isChecked(
+            text: String,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): Boolean = find(text, wait)?.isChecked == true
+
+        /**
+         * Whether the first view with this Compose testTag (or View resource id) is checked.
+         * @param tag the testTag of the view to look at
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         */
+        fun isTagChecked(
+            tag: String,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): Boolean = findTag(tag, wait)?.isChecked == true
+
+        /**
+         * Assert that the view with this text is on screen and enabled
+         */
+        fun assertEnabled(text: String, wait: Long = DEFAULT_WAITING_TIME) =
+            assertTrue("$text should be enabled", requireVisible(By.text(text), wait, text).isEnabled)
+
+        /**
+         * Assert that the view with this text is on screen and disabled
+         */
+        fun assertDisabled(text: String, wait: Long = DEFAULT_WAITING_TIME) =
+            assertFalse("$text should be disabled", requireVisible(By.text(text), wait, text).isEnabled)
+
+        /**
+         * Assert that the view with this Compose testTag is on screen and enabled
+         */
+        fun assertTagEnabled(tag: String, wait: Long = DEFAULT_WAITING_TIME) =
+            assertTrue("$tag should be enabled", requireVisible(By.res(tag), wait, tag).isEnabled)
+
+        /**
+         * Assert that the view with this Compose testTag is on screen and disabled
+         */
+        fun assertTagDisabled(tag: String, wait: Long = DEFAULT_WAITING_TIME) =
+            assertFalse("$tag should be disabled", requireVisible(By.res(tag), wait, tag).isEnabled)
+
+        /**
+         * Assert that the view with this text is on screen and checked
+         */
+        fun assertChecked(text: String, wait: Long = DEFAULT_WAITING_TIME) =
+            assertTrue("$text should be checked", requireVisible(By.text(text), wait, text).isChecked)
+
+        /**
+         * Assert that the view with this text is on screen and not checked
+         */
+        fun assertUnchecked(text: String, wait: Long = DEFAULT_WAITING_TIME) =
+            assertFalse("$text should be unchecked", requireVisible(By.text(text), wait, text).isChecked)
+
+        /**
+         * Assert that the view with this Compose testTag is on screen and checked
+         */
+        fun assertTagChecked(tag: String, wait: Long = DEFAULT_WAITING_TIME) =
+            assertTrue("$tag should be checked", requireVisible(By.res(tag), wait, tag).isChecked)
+
+        /**
+         * Assert that the view with this Compose testTag is on screen and not checked
+         */
+        fun assertTagUnchecked(tag: String, wait: Long = DEFAULT_WAITING_TIME) =
+            assertFalse("$tag should be unchecked", requireVisible(By.res(tag), wait, tag).isChecked)
+
+        /**
+         * The first view the selector matches, failing the test if it never showed up.
+         *
+         * The state assertions go through this rather than through the nullable finders, so that
+         * asking whether a missing view is disabled fails as "not visible" instead of passing.
+         * @param selector what the view has to match
+         * @param wait how long to wait for it before giving up, in milliseconds
+         * @param description how to name the view in the failure message
+         */
+        private fun requireVisible(selector: BySelector, wait: Long, description: String): UiObject2 =
+            findFirst(selector, wait) ?: throw AssertionError("$description should be visible")
+
         // ---------------------------------------------------------------------------------------
         // Clicking
         // ---------------------------------------------------------------------------------------
@@ -433,6 +611,99 @@ class Kobaia<T : Activity>(
          * @param wait how long to wait for them before giving up, in milliseconds
          * @return whether anything was clicked at all
          */
+        /**
+         * Long click every UiObject2 with the given text. This method won't fail your test if
+         * nothing is clicked
+         * @param text the text that you want to be long clicked in your screen
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         * @return whether anything was long clicked at all
+         */
+        fun longClick(
+            text: String,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): Boolean = longClickAll(By.text(text), wait)
+
+        /**
+         * Long click every UiObject2 whose text matches the pattern
+         * @param pattern the text pattern that you want to be long clicked in your screen
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         * @return whether anything was long clicked at all
+         */
+        fun longClick(
+            pattern: Pattern,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): Boolean = longClickAll(By.text(pattern), wait)
+
+        /**
+         * Long click every UiObject2 with the given content description
+         * @param text the description of what you want to be long clicked in your screen
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         * @return whether anything was long clicked at all
+         */
+        fun longClickDescription(
+            text: String,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): Boolean = longClickAll(By.desc(text), wait)
+
+        /**
+         * Long click every UiObject2 whose content description matches the pattern
+         * @param pattern the description pattern of what you want to be long clicked
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         * @return whether anything was long clicked at all
+         */
+        fun longClickDescription(
+            pattern: Pattern,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): Boolean = longClickAll(By.desc(pattern), wait)
+
+        /**
+         * Long click every UiObject2 with the given Compose testTag (or View resource id)
+         * @param tag the testTag of what you want to be long clicked in your screen
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         * @return whether anything was long clicked at all
+         */
+        fun longClickTag(
+            tag: String,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): Boolean = longClickAll(By.res(tag), wait)
+
+        /**
+         * Long click every UiObject2 whose Compose testTag (or View resource id) matches the
+         * pattern
+         * @param pattern the testTag pattern of what you want to be long clicked
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         * @return whether anything was long clicked at all
+         */
+        fun longClickTag(
+            pattern: Pattern,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): Boolean = longClickAll(By.res(pattern), wait)
+
+        /**
+         * Long click every view the selector matches, waiting for them to show up
+         * @param selector what the views have to match
+         * @param wait how long to wait for them before giving up, in milliseconds
+         * @return whether anything was long clicked at all
+         */
+        private fun longClickAll(selector: BySelector, wait: Long): Boolean =
+            device().wait(Until.findObjects(selector), wait)
+                .orEmpty()
+                .onEach(UiObject2::longClick)
+                .isNotEmpty()
+
+        /**
+         * Click the first view the selector matches, and only that one — for the times when
+         * clicking every match would be wrong, such as a dialog offering several ways to say yes
+         * @param selector what the view has to match
+         * @param wait how long to wait for it before giving up, in milliseconds
+         * @return whether anything was clicked
+         */
+        private fun clickFirst(selector: BySelector, wait: Long): Boolean {
+            val view = findFirst(selector, wait) ?: return false
+            view.click()
+            return true
+        }
+
         private fun clickAll(selector: BySelector, wait: Long): Boolean =
             device().wait(Until.findObjects(selector), wait)
                 .orEmpty()
@@ -515,6 +786,28 @@ class Kobaia<T : Activity>(
             tag: String,
             wait: Long = DEFAULT_WAITING_TIME
         ) = typeCharacterByCharacter(findTag(tag, wait), text, wait)
+
+        /**
+         * Empty the field with the given content description
+         * @param into the description of the field to clear
+         * @param wait how long you want to wait for the field (Default is 5000 milliseconds)
+         * @return the field that was cleared, or null if it never showed up
+         */
+        fun clearText(
+            into: String,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): UiObject2? = findDescription(into, wait)?.apply { clear() }
+
+        /**
+         * Empty the field with the given Compose testTag (or View resource id)
+         * @param tag the testTag of the field to clear
+         * @param wait how long you want to wait for the field (Default is 5000 milliseconds)
+         * @return the field that was cleared, or null if it never showed up
+         */
+        fun clearTextInTag(
+            tag: String,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): UiObject2? = findTag(tag, wait)?.apply { clear() }
 
         // ---------------------------------------------------------------------------------------
         // Scrolling
@@ -635,6 +928,84 @@ class Kobaia<T : Activity>(
          * (hardware keys, the launcher, the notification shade, other apps) is one step away
          */
         fun device(): UiDevice = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+
+        /**
+         * Press the back button
+         */
+        fun pressBack(): Boolean = device().pressBack()
+
+        /**
+         * Press the home button, sending the app under test to the background
+         */
+        fun pressHome(): Boolean = device().pressHome()
+
+        /**
+         * Press enter, which submits most forms
+         */
+        fun pressEnter(): Boolean = device().pressEnter()
+
+        /**
+         * Open the recent apps switcher
+         */
+        fun pressRecentApps(): Boolean = device().pressRecentApps()
+
+        /**
+         * Close the soft keyboard.
+         *
+         * There is no way to ask the system to close only the keyboard, so this presses back —
+         * which closes it when it is open, and navigates back when it is not.
+         */
+        fun closeKeyboard(): Boolean = device().pressBack()
+
+        /**
+         * Pull down the notification shade. The notifications themselves are read and clicked with
+         * the same functions as anything else
+         */
+        fun openNotifications(): Boolean = device().openNotification()
+
+        /**
+         * Grant the runtime permission the system is currently asking for.
+         *
+         * The dialog belongs to the system rather than to your app, which is exactly the kind of
+         * thing UIAutomator can reach. Its buttons are matched by resource id first, and by their
+         * label as a fallback, so it survives both the wording and the package moving between
+         * Android versions.
+         * @param wait how long to wait for the dialog (Default is 5000 milliseconds)
+         * @return whether a permission dialog was there to answer
+         */
+        fun allowPermission(wait: Long = DEFAULT_WAITING_TIME): Boolean =
+            clickFirst(By.res(ALLOW_PERMISSION_BUTTONS), wait) ||
+                clickFirst(By.text(ALLOW_PERMISSION_LABELS), QUICK_WAITING_TIME)
+
+        /**
+         * Refuse the runtime permission the system is currently asking for. @see allowPermission
+         * @param wait how long to wait for the dialog (Default is 5000 milliseconds)
+         * @return whether a permission dialog was there to answer
+         */
+        fun denyPermission(wait: Long = DEFAULT_WAITING_TIME): Boolean =
+            clickFirst(By.res(DENY_PERMISSION_BUTTONS), wait) ||
+                clickFirst(By.text(DENY_PERMISSION_LABELS), QUICK_WAITING_TIME)
+
+        /**
+         * Turn the device to landscape and hold it there.
+         *
+         * The rotation stays frozen until [rotateNatural] puts it back, so that the app cannot
+         * quietly rotate underneath the rest of the test.
+         */
+        fun rotateLandscape() = device().setOrientationLandscape()
+
+        /**
+         * Turn the device to portrait and hold it there. @see rotateLandscape
+         */
+        fun rotatePortrait() = device().setOrientationPortrait()
+
+        /**
+         * Put the device back the way it was, and let it rotate on its own again
+         */
+        fun rotateNatural() {
+            device().setOrientationNatural()
+            device().unfreezeRotation()
+        }
 
         // ---------------------------------------------------------------------------------------
         // Deprecated names, kept so tests written against older versions keep compiling
