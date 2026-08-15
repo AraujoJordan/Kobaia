@@ -64,17 +64,44 @@ class Kobaia<T : Activity>(
         const val DEFAULT_FLAKY_ATTEMPTS = 5
 
         /**
-         * How many times the scrolling functions scroll before giving up
+         * How many times the scrolling functions swipe before giving up
          */
-        const val DEFAULT_MAXIMUM_SCROLLS = 5
+        const val DEFAULT_MAXIMUM_SCROLLS = 10
+
+        /**
+         * How long Espresso may wait for the app under test to go idle, in milliseconds.
+         *
+         * This is Espresso's own default, and it only applies if you mix Espresso interactions
+         * into a Kobaia test — Kobaia itself does not wait on idleness, which is what lets it
+         * drive screens that never go idle, such as a Compose screen with a running animation.
+         */
+        const val DEFAULT_IDLING_LIMIT = 60_000L
+
+        /**
+         * A wait for something that is either already on screen or not coming: long enough to
+         * survive a frame or two, short enough to probe with.
+         *
+         * Pass it when you expect a miss — `click("Not now", wait = QUICK_WAITING_TIME)` — so the
+         * check costs 50 milliseconds instead of the full five seconds.
+         */
+        const val QUICK_WAITING_TIME = 50L
+
+        /**
+         * Whether Kobaia replaces UIAutomator's global timeouts with its own, which are far
+         * shorter. UIAutomator waits up to 10 seconds for a selector and a second for every
+         * swipe, on top of the waiting Kobaia already does itself.
+         *
+         * Set it to false before your first test if you would rather keep the platform defaults.
+         */
+        var tuneUiAutomatorTimeouts = true
 
         private const val INITIAL_TOUCH_MODE_ENABLED = true
 
         /**
-         * How long to wait for something that should already be on screen — the next key of the
-         * soft keyboard, or a view that was just scrolled to
+         * How long to wait for the soft keyboard to come up. Deliberately short: a screen with a
+         * blinking text cursor never goes idle, so waiting for idle is waiting for the timeout.
          */
-        private const val SHORT_WAITING_TIME = 50L
+        private const val KEYBOARD_WAITING_TIME = 500L
 
         inline fun <reified T : Activity> create(): Kobaia<T> = create(T::class.java)
 
@@ -161,7 +188,16 @@ class Kobaia<T : Activity>(
          * @param wait how long to wait for it before giving up, in milliseconds
          */
         private fun findFirst(selector: BySelector, wait: Long): UiObject2? =
-            device().wait(Until.findObjects(selector), wait)?.firstOrNull()
+            device().wait(Until.findObject(selector), wait)
+
+        /**
+         * Whether anything matching the selector shows up before the wait runs out.
+         * Cheaper than [findFirst]: nothing has to be wrapped in a UiObject2 to answer.
+         * @param selector what the view has to match
+         * @param wait how long to wait for it before giving up, in milliseconds
+         */
+        private fun isShowing(selector: BySelector, wait: Long): Boolean =
+            device().wait(Until.hasObject(selector), wait) == true
 
         // ---------------------------------------------------------------------------------------
         // Checking
@@ -176,7 +212,7 @@ class Kobaia<T : Activity>(
         fun isVisible(
             text: String,
             wait: Long = DEFAULT_WAITING_TIME
-        ): Boolean = find(text, wait) != null
+        ): Boolean = isShowing(By.text(text), wait)
 
         /**
          * Check if a text pattern is visible on screen.
@@ -187,7 +223,7 @@ class Kobaia<T : Activity>(
         fun isVisible(
             pattern: Pattern,
             wait: Long = DEFAULT_WAITING_TIME
-        ): Boolean = find(pattern, wait) != null
+        ): Boolean = isShowing(By.text(pattern), wait)
 
         /**
          * Check if the given text is part of a text visible on screen.
@@ -198,7 +234,7 @@ class Kobaia<T : Activity>(
         fun containsText(
             text: String,
             wait: Long = DEFAULT_WAITING_TIME
-        ): Boolean = findFirst(By.textContains(text), wait) != null
+        ): Boolean = isShowing(By.textContains(text), wait)
 
         /**
          * Check if a content description is visible on screen.
@@ -210,7 +246,7 @@ class Kobaia<T : Activity>(
         fun isDescriptionVisible(
             text: String,
             wait: Long = DEFAULT_WAITING_TIME
-        ): Boolean = findDescription(text, wait) != null
+        ): Boolean = isShowing(By.desc(text), wait)
 
         /**
          * Check if a content description matching the pattern is visible on screen.
@@ -222,7 +258,7 @@ class Kobaia<T : Activity>(
         fun isDescriptionVisible(
             pattern: Pattern,
             wait: Long = DEFAULT_WAITING_TIME
-        ): Boolean = findDescription(pattern, wait) != null
+        ): Boolean = isShowing(By.desc(pattern), wait)
 
         /**
          * Check if a Compose testTag (or View resource id) is visible on screen.
@@ -233,7 +269,7 @@ class Kobaia<T : Activity>(
         fun isTagVisible(
             tag: String,
             wait: Long = DEFAULT_WAITING_TIME
-        ): Boolean = findTag(tag, wait) != null
+        ): Boolean = isShowing(By.res(tag), wait)
 
         /**
          * Check if a Compose testTag (or View resource id) matching the pattern is visible.
@@ -244,7 +280,7 @@ class Kobaia<T : Activity>(
         fun isTagVisible(
             pattern: Pattern,
             wait: Long = DEFAULT_WAITING_TIME
-        ): Boolean = findTag(pattern, wait) != null
+        ): Boolean = isShowing(By.res(pattern), wait)
 
         /**
          * Assert that a text is visible on screen, failing the test with a readable message if it
@@ -444,9 +480,9 @@ class Kobaia<T : Activity>(
          */
         private fun typeCharacterByCharacter(field: UiObject2?, text: String, wait: Long) {
             field?.click()
-            device().waitForIdle(wait) // wait for keyboard
+            device().waitForIdle(KEYBOARD_WAITING_TIME) // wait for keyboard
             text.forEach { character ->
-                find(character.toString(), SHORT_WAITING_TIME)?.click()
+                find(character.toString(), QUICK_WAITING_TIME)?.click()
             }
         }
 
@@ -485,119 +521,103 @@ class Kobaia<T : Activity>(
         // ---------------------------------------------------------------------------------------
 
         /**
-         * Scroll the first scrollable view (RecyclerView, ListView, ScrollView, …) until a text
+         * Scroll the first scrollable view forward (RecyclerView, ListView, ScrollView, …) until a text
          * is visible.
          * @param text the text that you want to find
-         * @param maximumScrolls how many times it will scroll until give up (Default: 5)
+         * @param maximumScrolls how many times it will swipe before giving up (Default: 10)
          * @return the text view, or null if it was not reached
          */
         fun scrollTo(
             text: String,
             maximumScrolls: Int = DEFAULT_MAXIMUM_SCROLLS
-        ): UiObject2? = scrollUntilFound(
-            scrollTarget = UiSelector().text(text),
-            maximumScrolls = maximumScrolls
-        ) { find(text, SHORT_WAITING_TIME) }
+        ): UiObject2? = scrollUntilFound(maximumScrolls) { find(text, QUICK_WAITING_TIME) }
 
         /**
-         * Scroll the first scrollable view (RecyclerView, ListView, ScrollView, …) until a text
+         * Scroll the first scrollable view forward (RecyclerView, ListView, ScrollView, …) until a text
          * pattern is visible.
          * @param pattern the pattern that you want to find
-         * @param maximumScrolls how many times it will scroll until give up (Default: 5)
+         * @param maximumScrolls how many times it will swipe before giving up (Default: 10)
          * @return the text view, or null if it was not reached
          */
         fun scrollTo(
             pattern: Pattern,
             maximumScrolls: Int = DEFAULT_MAXIMUM_SCROLLS
-        ): UiObject2? = scrollUntilFound(
-            scrollTarget = UiSelector().textMatches(pattern.pattern()),
-            maximumScrolls = maximumScrolls
-        ) { find(pattern, SHORT_WAITING_TIME) }
+        ): UiObject2? = scrollUntilFound(maximumScrolls) { find(pattern, QUICK_WAITING_TIME) }
 
         /**
-         * Scroll the first scrollable view (RecyclerView, ListView, ScrollView, …) until a content
+         * Scroll the first scrollable view forward (RecyclerView, ListView, ScrollView, …) until a content
          * description is visible. This is useful to search for Images or EditTexts
          * @param text the description that you want to find
-         * @param maximumScrolls how many times it will scroll until give up (Default: 5)
+         * @param maximumScrolls how many times it will swipe before giving up (Default: 10)
          * @return the view, or null if it was not reached
          */
         fun scrollToDescription(
             text: String,
             maximumScrolls: Int = DEFAULT_MAXIMUM_SCROLLS
-        ): UiObject2? = scrollUntilFound(
-            scrollTarget = UiSelector().description(text),
-            maximumScrolls = maximumScrolls
-        ) { findDescription(text, SHORT_WAITING_TIME) }
+        ): UiObject2? = scrollUntilFound(maximumScrolls) { findDescription(text, QUICK_WAITING_TIME) }
 
         /**
-         * Scroll the first scrollable view (RecyclerView, ListView, ScrollView, …) until a content
+         * Scroll the first scrollable view forward (RecyclerView, ListView, ScrollView, …) until a content
          * description matching the pattern is visible.
          * This is useful to search for Images or EditTexts
          * @param pattern the description pattern that you want to find
-         * @param maximumScrolls how many times it will scroll until give up (Default: 5)
+         * @param maximumScrolls how many times it will swipe before giving up (Default: 10)
          * @return the view, or null if it was not reached
          */
         fun scrollToDescription(
             pattern: Pattern,
             maximumScrolls: Int = DEFAULT_MAXIMUM_SCROLLS
-        ): UiObject2? = scrollUntilFound(
-            scrollTarget = UiSelector().descriptionMatches(pattern.pattern()),
-            maximumScrolls = maximumScrolls
-        ) { findDescription(pattern, SHORT_WAITING_TIME) }
+        ): UiObject2? = scrollUntilFound(maximumScrolls) { findDescription(pattern, QUICK_WAITING_TIME) }
 
         /**
-         * Scroll the first scrollable view (LazyColumn, RecyclerView, ListView, ScrollView, …)
+         * Scroll the first scrollable view forward (LazyColumn, RecyclerView, ListView, ScrollView, …)
          * until a Compose testTag (or View resource id) is visible.
          * @param tag the testTag that you want to find
-         * @param maximumScrolls how many times it will scroll until give up (Default: 5)
+         * @param maximumScrolls how many times it will swipe before giving up (Default: 10)
          * @return the view, or null if it was not reached
          */
         fun scrollToTag(
             tag: String,
             maximumScrolls: Int = DEFAULT_MAXIMUM_SCROLLS
-        ): UiObject2? = scrollUntilFound(
-            scrollTarget = UiSelector().resourceId(tag),
-            maximumScrolls = maximumScrolls
-        ) { findTag(tag, SHORT_WAITING_TIME) }
+        ): UiObject2? = scrollUntilFound(maximumScrolls) { findTag(tag, QUICK_WAITING_TIME) }
 
         /**
-         * Scroll the first scrollable view (LazyColumn, RecyclerView, ListView, ScrollView, …)
+         * Scroll the first scrollable view forward (LazyColumn, RecyclerView, ListView, ScrollView, …)
          * until a Compose testTag (or View resource id) matching the pattern is visible.
          * @param pattern the testTag pattern that you want to find
-         * @param maximumScrolls how many times it will scroll until give up (Default: 5)
+         * @param maximumScrolls how many times it will swipe before giving up (Default: 10)
          * @return the view, or null if it was not reached
          */
         fun scrollToTag(
             pattern: Pattern,
             maximumScrolls: Int = DEFAULT_MAXIMUM_SCROLLS
-        ): UiObject2? = scrollUntilFound(
-            scrollTarget = UiSelector().resourceIdMatches(pattern.pattern()),
-            maximumScrolls = maximumScrolls
-        ) { findTag(pattern, SHORT_WAITING_TIME) }
+        ): UiObject2? = scrollUntilFound(maximumScrolls) { findTag(pattern, QUICK_WAITING_TIME) }
 
         /**
-         * Scroll the first scrollable view towards a target, checking after every scroll whether
-         * the target became visible.
-         * @param scrollTarget what the scrollable view scrolls towards
-         * @param maximumScrolls how many times it will scroll until give up
-         * @param find how the target is looked up once it is supposed to be on screen
+         * Swipe the first scrollable view forward until the target turns up, checking before
+         * every swipe so that a target already on screen costs none.
+         *
+         * It searches forward from wherever the list currently sits rather than rewinding to the
+         * top first, and stops as soon as the list says it cannot scroll any further, so the cost
+         * of a miss is bounded by [maximumScrolls] swipes.
+         * @param maximumScrolls how many times to swipe before giving up
+         * @param find how the target is looked up between swipes
          */
-        private fun scrollUntilFound(
-            scrollTarget: UiSelector,
-            maximumScrolls: Int,
-            find: () -> UiObject2?
-        ): UiObject2? {
+        private fun scrollUntilFound(maximumScrolls: Int, find: () -> UiObject2?): UiObject2? {
+            val scrollableView = UiScrollable(UiSelector().scrollable(true))
             repeat(maximumScrolls.coerceAtLeast(1)) {
-                try {
-                    UiScrollable(UiSelector().scrollable(true)).scrollIntoView(scrollTarget)
-                } catch (noScrollableView: UiObjectNotFoundException) {
-                    // A screen that is still loading its list has nothing to scroll yet, and a
-                    // target that needs no scrolling at all is already on screen. Neither is a
-                    // reason to fail: like every other finder, this one reports a miss with null.
-                }
                 find()?.let { return it }
+                val scrolledFurther = try {
+                    scrollableView.scrollForward()
+                } catch (noScrollableView: UiObjectNotFoundException) {
+                    // A screen that is still loading its list has nothing to scroll yet. Like
+                    // every other finder, this one reports a miss with null rather than failing.
+                    return null
+                }
+                // The end of the list: one last look at what that final swipe brought into view.
+                if (!scrolledFurther) return find()
             }
-            return null
+            return find()
         }
 
         // ---------------------------------------------------------------------------------------
@@ -720,6 +740,7 @@ class Kobaia<T : Activity>(
     )
 
     override fun apply(base: Statement, description: Description): Statement {
+        UiAutomatorTimeouts.tuneOnce()
         return RuleChain.outerRule(flakyTestRule)
             .around(activityTestRule)
             .around(clearDataRule)
@@ -729,11 +750,11 @@ class Kobaia<T : Activity>(
     /**
      * Launch test activity
      * @param startIntent the intent used to start the activity, or null for a plain launch
-     * @param waitLimit how long Espresso waits for the app to go idle, in seconds
+     * @param waitLimit how long Espresso waits for the app to go idle, in milliseconds
      */
-    fun launchActivity(startIntent: Intent? = null, waitLimit: Long = DEFAULT_WAITING_TIME) {
-        IdlingPolicies.setMasterPolicyTimeout(waitLimit, TimeUnit.SECONDS)
-        IdlingPolicies.setIdlingResourceTimeout(waitLimit, TimeUnit.SECONDS)
+    fun launchActivity(startIntent: Intent? = null, waitLimit: Long = DEFAULT_IDLING_LIMIT) {
+        IdlingPolicies.setMasterPolicyTimeout(waitLimit, TimeUnit.MILLISECONDS)
+        IdlingPolicies.setIdlingResourceTimeout(waitLimit, TimeUnit.MILLISECONDS)
         activityTestRule.launchActivity(startIntent)
         device()
     }

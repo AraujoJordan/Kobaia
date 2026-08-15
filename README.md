@@ -102,7 +102,7 @@ And it takes the same optional arguments the rule does:
 | --- | --- | --- |
 | `startIntent` | `null` | The intent used to start the activity, instead of a plain launch. |
 | `flakyAttempts` | `5` | How many times a failing test is retried before it is reported as failed. |
-| `waitLimit` | `5000` | Espresso's master and idling-resource timeout, in **seconds**. |
+| `waitLimit` | `60000` | Espresso's master and idling-resource timeout, in milliseconds. Only matters if you mix Espresso interactions into the test. |
 
 ```kotlin
 @Test
@@ -160,7 +160,7 @@ test. This lets you set up state (mock server, intent extras, …) first:
 ```kotlin
 kobaia.launchActivity(
     startIntent = Intent(context, SplashActivity::class.java).putExtra("skipTutorial", true),
-    waitLimit = 30
+    waitLimit = 30_000
 )
 ```
 
@@ -271,10 +271,12 @@ clickDescription(Pattern.compile("item_\\d+"))
 ```
 
 They click first and report after: each one returns whether it clicked anything, which is enough
-to handle a label that may or may not be there without a second lookup.
+to handle a label that may or may not be there without a second lookup. Pass `QUICK_WAITING_TIME`
+when you expect a miss — a view that is not there costs the full `wait` before Kobaia gives up, so
+probing with the 5 s default is the most common reason a suite crawls:
 
 ```kotlin
-if (!click("Not now")) click("Dismiss")
+if (!click("Not now", wait = QUICK_WAITING_TIME)) click("Dismiss", wait = QUICK_WAITING_TIME)
 ```
 
 Filling a field takes the text and the content description of the field it goes into:
@@ -294,9 +296,14 @@ kobaia typeOnKeyboard "133.37" into "editField"
 
 ### Scrolling
 
-Each of these scrolls the first scrollable container (`RecyclerView`, `ListView`, `ScrollView`, …)
-until the target is visible, then returns it as a `UiObject2?`. They give up after
-`maximumScrolls` (5 by default) and return `null`.
+Each of these swipes the first scrollable container (`LazyColumn`, `RecyclerView`, `ListView`,
+`ScrollView`, …) forward until the target is visible, then returns it as a `UiObject2?`. They
+check before every swipe, so a target already on screen costs none, and they stop early when the
+container says it has reached the end. They give up after `maximumScrolls` swipes (10 by default)
+and return `null`.
+
+They search **forward from wherever the list currently sits** — they do not rewind to the top
+first. Scroll back explicitly if your test has already scrolled past the target.
 
 ```kotlin
 scrollTo("SCROLL TO CLICK ME!")
@@ -473,6 +480,7 @@ Each name works both as a plain call and as an infix one.
 | **Type** | `type … into`, `type … intoTag`, `typeOnKeyboard … into`, `typeOnKeyboard … intoTag` |
 | **Scroll** | `scrollTo`, `scrollToDescription`, `scrollToTag` |
 | **Device** | `device`, `waitFor` |
+| **Tuning** | `DEFAULT_WAITING_TIME`, `QUICK_WAITING_TIME`, `DEFAULT_MAXIMUM_SCROLLS`, `tuneUiAutomatorTimeouts` |
 | **Start** | `launch<T> { … }`, `T::class.launch { … }`, `Kobaia(T::class.java)` |
 
 Every `String` overload above has a `java.util.regex.Pattern` twin, except the substring ones
@@ -500,6 +508,15 @@ for you.
 | `scrollUntilFindDescription` | `scrollToDescription` |
 | `waitTest` | `waitFor` |
 | `uiDevice` | `device` |
+
+`waitLimit`, on both `launchActivity` and `launch`, is now in **milliseconds** like every other
+wait in the library. It used to be handed to a seconds-based API while defaulting to a
+milliseconds constant, so the effective timeout was 83 minutes; it is now Espresso's own default
+of 60 seconds. If you passed it explicitly, multiply by 1000.
+
+`waitFor` no longer waits for the main thread to go idle before sleeping — it holds for exactly
+as long as you ask. Waiting for idle never returns on a screen that animates continuously, which
+is most Compose screens with a spinner or a focused text field.
 
 The two constructor arguments were renamed as well, from `DEFAULT_FLAKY_ATTEMPTS` and
 `LAUNCH_ACTIVITY_AUTOMATICALLY` to `flakyAttempts` and `launchActivityAutomatically`. Parameter
@@ -576,6 +593,22 @@ core/runner/rules and JUnit as `api` dependencies, so you can mix Espresso asser
 **Tests are isolated by default.** Shared preferences, databases and files are cleared between
 tests, so a test that logs in cannot leak a session into the next one. A test that fails every
 attempt is the exception: it leaves its state behind so you can inspect it.
+
+**Animations are worth turning off.** Add this to the app you are testing — the suite stops
+paying for animations it cannot see, and stops waiting for them to finish:
+
+```gradle
+android {
+    testOptions {
+        animationsDisabled = true
+    }
+}
+```
+
+**It does not wait longer than it has to.** UIAutomator gives itself ten seconds to resolve a
+selector and a second of acknowledgement per swipe, underneath everything Kobaia does; Kobaia
+lowers both once, before your first test, because it already waits for what it looks for. Set
+`Kobaia.tuneUiAutomatorTimeouts = false` to keep the platform defaults.
 
 **Flaky tests are retried, and the retries are not silent.** Up to 5 attempts by default; tune it
 with `flakyAttempts`, on `launch` or on the rule's constructor, or set it to `1` in CI if you would

@@ -5,15 +5,10 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.os.SystemClock
 import android.util.Log
-import android.view.View
-import androidx.test.espresso.Espresso.onView
-import androidx.test.espresso.UiController
-import androidx.test.espresso.ViewAction
-import androidx.test.espresso.matcher.ViewMatchers.isRoot
+import androidx.test.uiautomator.Configurator
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
-import org.hamcrest.Matcher
 import org.junit.AssumptionViolatedException
 import org.junit.rules.TestRule
 import org.junit.runner.Description
@@ -204,6 +199,30 @@ internal fun retryOnFailure(label: String, attempts: Int, attempt: () -> Unit) {
 }
 
 /**
+ * UIAutomator's own timeouts, which it applies underneath everything Kobaia does.
+ *
+ * They are generous by default — ten seconds to resolve a selector, a second of acknowledgement
+ * per swipe — and Kobaia already waits for what it looks for, so out of the box every scroll pays
+ * both. These are lowered once, before the first test, unless [Kobaia.tuneUiAutomatorTimeouts]
+ * says otherwise.
+ */
+internal object UiAutomatorTimeouts {
+
+    private var tuned = false
+
+    fun tuneOnce() {
+        if (tuned || !Kobaia.tuneUiAutomatorTimeouts) return
+        tuned = true
+        Configurator.getInstance()
+            .setWaitForSelectorTimeout(SELECTOR_TIMEOUT)
+            .setScrollAcknowledgmentTimeout(SCROLL_ACKNOWLEDGMENT_TIMEOUT)
+    }
+
+    private const val SELECTOR_TIMEOUT = 1000L
+    private const val SCROLL_ACKNOWLEDGMENT_TIMEOUT = 200L
+}
+
+/**
  * The logcat tag Kobaia reports under
  */
 internal const val KOBAIA_TAG = "Kobaia"
@@ -231,27 +250,18 @@ internal class FlakyTestRule : TestRule {
 }
 
 /**
- * Make the test wait without holding up the main thread, so the app keeps drawing and
- * processing while the wait is on.
+ * Make the test wait without holding up the app under test.
+ *
+ * The wait happens on the instrumentation thread, so the app keeps drawing and processing
+ * throughout — Kobaia drives it from outside its process. This deliberately does not route
+ * through Espresso: waiting for the main thread to go idle never returns on a screen that
+ * animates continuously, which a Compose screen with a spinner or a blinking cursor does.
  */
 internal object KobaiaSleep {
 
     /**
-     * Wait for the app to go idle and then keep the main thread looping for a while
+     * Hold the test for as long as asked, and no longer
      * @param millis how long to wait for, in milliseconds
      */
-    fun sleep(millis: Long) {
-        onView(isRoot()).perform(sleepViewAction(millis))
-    }
-
-    private fun sleepViewAction(millis: Long) = object : ViewAction {
-        override fun getConstraints(): Matcher<View> = isRoot()
-
-        override fun getDescription() = "Wait for at least $millis millis"
-
-        override fun perform(uiController: UiController, view: View) {
-            uiController.loopMainThreadUntilIdle()
-            uiController.loopMainThreadForAtLeast(millis)
-        }
-    }
+    fun sleep(millis: Long) = SystemClock.sleep(millis)
 }

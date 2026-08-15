@@ -46,13 +46,13 @@ class KobaiaScope<T : Activity> internal constructor(
  *
  * @param startIntent the intent used to start the activity, or null for a plain launch
  * @param flakyAttempts how many times a failing test is retried before it is reported as failed
- * @param waitLimit how long Espresso waits for the app to go idle, in seconds
+ * @param waitLimit how long Espresso waits for the app to go idle, in milliseconds
  * @param test what the test does with the activity, with a [KobaiaScope] as its receiver
  */
 inline fun <reified T : Activity> launch(
     startIntent: Intent? = null,
     flakyAttempts: Int = Kobaia.DEFAULT_FLAKY_ATTEMPTS,
-    waitLimit: Long = Kobaia.DEFAULT_WAITING_TIME,
+    waitLimit: Long = Kobaia.DEFAULT_IDLING_LIMIT,
     noinline test: KobaiaScope<T>.() -> Unit
 ) = launch(T::class.java, startIntent, flakyAttempts, waitLimit, test)
 
@@ -72,7 +72,7 @@ inline fun <reified T : Activity> launch(
 fun <T : Activity> KClass<T>.launch(
     startIntent: Intent? = null,
     flakyAttempts: Int = Kobaia.DEFAULT_FLAKY_ATTEMPTS,
-    waitLimit: Long = Kobaia.DEFAULT_WAITING_TIME,
+    waitLimit: Long = Kobaia.DEFAULT_IDLING_LIMIT,
     test: KobaiaScope<T>.() -> Unit
 ) = launch(java, startIntent, flakyAttempts, waitLimit, test)
 
@@ -87,11 +87,12 @@ fun <T : Activity> launch(
     activityClass: Class<T>,
     startIntent: Intent? = null,
     flakyAttempts: Int = Kobaia.DEFAULT_FLAKY_ATTEMPTS,
-    waitLimit: Long = Kobaia.DEFAULT_WAITING_TIME,
+    waitLimit: Long = Kobaia.DEFAULT_IDLING_LIMIT,
     test: KobaiaScope<T>.() -> Unit
 ) {
-    IdlingPolicies.setMasterPolicyTimeout(waitLimit, TimeUnit.SECONDS)
-    IdlingPolicies.setIdlingResourceTimeout(waitLimit, TimeUnit.SECONDS)
+    UiAutomatorTimeouts.tuneOnce()
+    IdlingPolicies.setMasterPolicyTimeout(waitLimit, TimeUnit.MILLISECONDS)
+    IdlingPolicies.setIdlingResourceTimeout(waitLimit, TimeUnit.MILLISECONDS)
 
     retryOnFailure(activityClass.simpleName, flakyAttempts) {
         AppUnderTest.clearData()

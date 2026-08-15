@@ -21,6 +21,12 @@ android {
         compose true
     }
 
+    testOptions {
+        // Window, transition and animator scales go to zero around the instrumented run: the
+        // suite stops paying for animations it cannot see, and stops waiting for them to end.
+        animationsDisabled = true
+    }
+
     buildTypes {
         release {
             minifyEnabled false

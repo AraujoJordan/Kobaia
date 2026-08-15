@@ -102,6 +102,27 @@ block at the end of `Kobaia`'s companion object, and the migration table in the 
 The same name has to read well both plainly and infix (`click("SKIP")` / `kobaia click "SKIP"`),
 which is why e.g. the substring variants are `containsText` / `clickContaining`.
 
+**Nothing in the interaction path may wait on main-thread idleness.** Kobaia drives the app from
+outside its process, and a Compose screen with a running animation is never idle, so an
+Espresso-style idle wait would hang rather than fail. `KobaiaSleep` is a plain sleep for that
+reason; Espresso survives only as `IdlingPolicies` in the two launch paths, for users who mix
+Espresso assertions into a test.
+
+**Nothing in the interaction path may wait on main-thread idleness.** Kobaia drives the app from
+outside its process, and a Compose screen with a running animation is never idle, so an
+Espresso-style idle wait hangs rather than fails. `KobaiaSleep` is a plain sleep for that reason;
+Espresso survives only as `IdlingPolicies` in the two launch paths, for users who mix Espresso
+assertions into a test.
+
+**A miss costs the full `wait`.** Nothing on screen means polling until the timeout, so the
+5000 ms default is what makes suites slow. `QUICK_WAITING_TIME` (50 ms) is the constant to reach
+for when a test probes for something it expects to be absent. The scrolling functions are bounded
+the same way: `maximumScrolls` is a swipe budget, and `scrollUntilFound` checks before every swipe
+rather than delegating to `UiScrollable.scrollIntoView`, which rewinds to the top and swipes up to
+30 times per call. `UiAutomatorTimeouts.tuneOnce()` in `KobaiaRules.kt` lowers UIAutomator's own
+global timeouts (10 s per selector, 1 s per swipe) once from both entry points — leave it applied
+from `Kobaia.apply()` and `launch()`, which are the two places that run before any interaction.
+
 **Interactions never throw on a miss**, except the `assert*` family. A click that finds nothing
 returns `false` and the test carries on; finders return `null`. That is why waits are generous by
 default (5000 ms) — a negative check should pass a short `wait` explicitly.
