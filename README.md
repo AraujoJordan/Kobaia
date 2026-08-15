@@ -520,9 +520,19 @@ core/runner/rules and JUnit as `api` dependencies, so you can mix Espresso asser
 tests, so a test that logs in cannot leak a session into the next one. A test that fails every
 attempt is the exception: it leaves its state behind so you can inspect it.
 
-**Flaky tests are retried.** Up to 5 attempts by default; tune it with `flakyAttempts`, on
-`launch` or on the rule's constructor, or set it to `1` in CI if you would rather see the
-flakiness.
+**Flaky tests are retried, and the retries are not silent.** Up to 5 attempts by default; tune it
+with `flakyAttempts`, on `launch` or on the rule's constructor, or set it to `1` in CI if you would
+rather see the flakiness. Every failed attempt is logged under the `Kobaia` tag with its stack
+trace, so a test that only passes on the third try still leaves a trail in logcat:
+
+```
+W Kobaia: testApp(…KobaiaSampleTest) failed on attempt 1 of 5, retrying
+```
+
+Between attempts, Kobaia finishes the activities the failed one left behind and waits for them to
+actually go away, so the retry starts on a fresh screen rather than on top of the wreckage. Tests
+skipped by `assumeTrue` and friends are not retried — the assumption will not become true on the
+second try.
 
 ## 📄 License
 

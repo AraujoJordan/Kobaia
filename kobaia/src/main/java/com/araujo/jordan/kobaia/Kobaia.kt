@@ -9,6 +9,7 @@ import androidx.test.uiautomator.By
 import androidx.test.uiautomator.BySelector
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
+import androidx.test.uiautomator.UiObjectNotFoundException
 import androidx.test.uiautomator.UiScrollable
 import androidx.test.uiautomator.UiSelector
 import androidx.test.uiautomator.Until
@@ -68,7 +69,12 @@ class Kobaia<T : Activity>(
         const val DEFAULT_MAXIMUM_SCROLLS = 5
 
         private const val INITIAL_TOUCH_MODE_ENABLED = true
-        private const val KEYBOARD_KEY_WAITING_TIME = 50L
+
+        /**
+         * How long to wait for something that should already be on screen — the next key of the
+         * soft keyboard, or a view that was just scrolled to
+         */
+        private const val SHORT_WAITING_TIME = 50L
 
         inline fun <reified T : Activity> create(): Kobaia<T> = create(T::class.java)
 
@@ -336,7 +342,7 @@ class Kobaia<T : Activity>(
             findDescription(into, wait)?.click()
             device().waitForIdle(wait) // wait for keyboard
             text.forEach { character ->
-                find(character.toString(), KEYBOARD_KEY_WAITING_TIME)?.click()
+                find(character.toString(), SHORT_WAITING_TIME)?.click()
             }
         }
 
@@ -357,7 +363,7 @@ class Kobaia<T : Activity>(
         ): UiObject2? = scrollUntilFound(
             scrollTarget = UiSelector().text(text),
             maximumScrolls = maximumScrolls
-        ) { find(text, KEYBOARD_KEY_WAITING_TIME) }
+        ) { find(text, SHORT_WAITING_TIME) }
 
         /**
          * Scroll the first scrollable view (RecyclerView, ListView, ScrollView, …) until a text
@@ -372,7 +378,7 @@ class Kobaia<T : Activity>(
         ): UiObject2? = scrollUntilFound(
             scrollTarget = UiSelector().textMatches(pattern.pattern()),
             maximumScrolls = maximumScrolls
-        ) { find(pattern, KEYBOARD_KEY_WAITING_TIME) }
+        ) { find(pattern, SHORT_WAITING_TIME) }
 
         /**
          * Scroll the first scrollable view (RecyclerView, ListView, ScrollView, …) until a content
@@ -387,7 +393,7 @@ class Kobaia<T : Activity>(
         ): UiObject2? = scrollUntilFound(
             scrollTarget = UiSelector().description(text),
             maximumScrolls = maximumScrolls
-        ) { findDescription(text, KEYBOARD_KEY_WAITING_TIME) }
+        ) { findDescription(text, SHORT_WAITING_TIME) }
 
         /**
          * Scroll the first scrollable view (RecyclerView, ListView, ScrollView, …) until a content
@@ -403,7 +409,7 @@ class Kobaia<T : Activity>(
         ): UiObject2? = scrollUntilFound(
             scrollTarget = UiSelector().descriptionMatches(pattern.pattern()),
             maximumScrolls = maximumScrolls
-        ) { findDescription(pattern, KEYBOARD_KEY_WAITING_TIME) }
+        ) { findDescription(pattern, SHORT_WAITING_TIME) }
 
         /**
          * Scroll the first scrollable view towards a target, checking after every scroll whether
@@ -418,7 +424,13 @@ class Kobaia<T : Activity>(
             find: () -> UiObject2?
         ): UiObject2? {
             repeat(maximumScrolls.coerceAtLeast(1)) {
-                UiScrollable(UiSelector().scrollable(true)).scrollIntoView(scrollTarget)
+                try {
+                    UiScrollable(UiSelector().scrollable(true)).scrollIntoView(scrollTarget)
+                } catch (noScrollableView: UiObjectNotFoundException) {
+                    // A screen that is still loading its list has nothing to scroll yet, and a
+                    // target that needs no scrolling at all is already on screen. Neither is a
+                    // reason to fail: like every other finder, this one reports a miss with null.
+                }
                 find()?.let { return it }
             }
             return null

@@ -93,21 +93,14 @@ fun <T : Activity> launch(
     IdlingPolicies.setMasterPolicyTimeout(waitLimit, TimeUnit.SECONDS)
     IdlingPolicies.setIdlingResourceTimeout(waitLimit, TimeUnit.SECONDS)
 
-    var lastError: Throwable? = null
-    repeat(flakyAttempts.coerceAtLeast(1)) {
+    retryOnFailure(activityClass.simpleName, flakyAttempts) {
         AppUnderTest.clearData()
-        try {
-            scenarioOf(activityClass, startIntent).use { KobaiaScope(it).test() }
-            AppUnderTest.clearData()
-            return
-        } catch (error: Throwable) {
-            lastError = error
-            // Whatever the failed attempt left on screen has to go, otherwise the next attempt
-            // starts on top of it instead of on a fresh activity.
-            AppUnderTest.finishAllActivities()
-        }
+        scenarioOf(activityClass, startIntent).use { KobaiaScope(it).test() }
     }
-    lastError?.let { throw it }
+
+    // Only once the test has passed, and outside the retrying: a state that fails to clear is not
+    // a flaky test, and a test that failed every attempt keeps its state so it can be inspected.
+    AppUnderTest.clearData()
 }
 
 /**

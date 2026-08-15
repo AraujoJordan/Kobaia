@@ -3,6 +3,8 @@ package com.araujo.jordan.kobaia
 import android.app.Activity
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
+import android.os.SystemClock
+import android.util.Log
 import android.view.View
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.UiController
@@ -12,6 +14,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
 import org.hamcrest.Matcher
+import org.junit.AssumptionViolatedException
 import org.junit.rules.TestRule
 import org.junit.runner.Description
 import org.junit.runners.model.Statement
@@ -40,16 +43,35 @@ internal object AppUnderTest {
     }
 
     /**
-     * Finish every activity of the app under test that has not been destroyed yet
+     * Finish every activity of the app under test that has not been destroyed yet, and wait for
+     * them to actually go away.
+     *
+     * `finish()` only asks: without the wait, the next attempt of a flaky test starts while the
+     * screen the failed one left behind is still on its way out, and lands on top of it.
      */
     fun finishAllActivities() {
-        InstrumentationRegistry.getInstrumentation().runOnMainSync {
-            val activityLifecycleMonitor = ActivityLifecycleMonitorRegistry.getInstance()
-            EnumSet.range(Stage.CREATED, Stage.STOPPED)
-                .flatMap<Stage, Activity> { activityLifecycleMonitor.getActivitiesInStage(it) }
-                .filterNot { it.isFinishing }
-                .forEach { it.finish() }
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.runOnMainSync {
+            runningActivities().filterNot { it.isFinishing }.forEach { it.finish() }
         }
+
+        val giveUpAt = SystemClock.uptimeMillis() + TEARDOWN_TIMEOUT
+        while (SystemClock.uptimeMillis() < giveUpAt) {
+            var stillRunning = true
+            instrumentation.runOnMainSync { stillRunning = runningActivities().isNotEmpty() }
+            if (!stillRunning) return
+            Thread.sleep(TEARDOWN_POLLING_INTERVAL)
+        }
+    }
+
+    /**
+     * The activities of the app under test that have been created and not destroyed yet.
+     * Only safe to call from the main thread, which is what the lifecycle monitor requires.
+     */
+    private fun runningActivities(): List<Activity> {
+        val activityLifecycleMonitor = ActivityLifecycleMonitorRegistry.getInstance()
+        return EnumSet.range(Stage.CREATED, Stage.STOPPED)
+            .flatMap { activityLifecycleMonitor.getActivitiesInStage(it) }
     }
 
     /**
@@ -119,6 +141,8 @@ internal object AppUnderTest {
         }
     }
 
+    private const val TEARDOWN_TIMEOUT = 5000L
+    private const val TEARDOWN_POLLING_INTERVAL = 50L
     private const val PREFERENCES_DIRECTORY = "shared_prefs"
     private const val PREFERENCES_EXTENSION = ".xml"
     private const val SELECT_TABLE_NAMES = "SELECT name FROM sqlite_master WHERE type = ?"
@@ -145,9 +169,47 @@ internal class ClearDataRule : TestRule {
 }
 
 /**
- * Re-run a test that fails, to keep an occasional flaky failure from breaking the build.
- * A test is only reported as failed once every attempt has been used up, and the failure that
- * is reported is the one from the last attempt.
+ * Run something until it passes, to keep an occasional flaky failure from breaking the build.
+ * It is only reported as failed once every attempt has been used up, and the failure that is
+ * reported is the one from the last attempt.
+ *
+ * A retry that nobody sees is how a flaky test goes unnoticed, so every failed attempt is logged
+ * under the [KOBAIA_TAG] tag. A test that was skipped rather than failed — `assumeTrue` and
+ * friends — is not retried at all: the assumption will not become true on the second try.
+ *
+ * @param label what is being run, for the log
+ * @param attempts the maximum number of attempts (anything below 1 counts as a single run)
+ * @param attempt what to run
+ */
+internal fun retryOnFailure(label: String, attempts: Int, attempt: () -> Unit) {
+    val maximumAttempts = attempts.coerceAtLeast(1)
+    var lastError: Throwable? = null
+    repeat(maximumAttempts) { previousAttempts ->
+        try {
+            attempt()
+            return
+        } catch (skipped: AssumptionViolatedException) {
+            throw skipped
+        } catch (error: Throwable) {
+            lastError = error
+            val attemptNumber = previousAttempts + 1
+            val outcome = if (attemptNumber < maximumAttempts) "retrying" else "giving up"
+            Log.w(KOBAIA_TAG, "$label failed on attempt $attemptNumber of $maximumAttempts, $outcome", error)
+            // Whatever the failed attempt left on screen has to go, otherwise the next attempt
+            // starts on top of it instead of on a fresh activity.
+            AppUnderTest.finishAllActivities()
+        }
+    }
+    lastError?.let { throw it }
+}
+
+/**
+ * The logcat tag Kobaia reports under
+ */
+internal const val KOBAIA_TAG = "Kobaia"
+
+/**
+ * Re-run a test that fails. @see retryOnFailure
  */
 internal class FlakyTestRule : TestRule {
 
@@ -163,21 +225,8 @@ internal class FlakyTestRule : TestRule {
 
     override fun apply(base: Statement, description: Description): Statement =
         object : Statement() {
-            override fun evaluate() {
-                var lastError: Throwable? = null
-                repeat(defaultAttempts) {
-                    try {
-                        base.evaluate()
-                        return
-                    } catch (error: Throwable) {
-                        lastError = error
-                        // Whatever the failed attempt left on screen has to go, otherwise the
-                        // next attempt starts on top of it instead of on a fresh activity.
-                        AppUnderTest.finishAllActivities()
-                    }
-                }
-                lastError?.let { throw it }
-            }
+            override fun evaluate() =
+                retryOnFailure(description.displayName, defaultAttempts) { base.evaluate() }
         }
 }
 
