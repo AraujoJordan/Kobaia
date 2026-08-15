@@ -2,7 +2,7 @@
 
 **The Android UI test library that reads like the test you would describe out loud.**
 
-[![JitPack](https://jitpack.io/v/AraujoJordan/Kobaia.svg)](https://jitpack.io/p/AraujoJordan/Kobaia/)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.araujojordan/kobaia.svg)](https://central.sonatype.com/artifact/io.github.araujojordan/kobaia)
 [![Build](https://github.com/AraujoJordan/Kobaia/actions/workflows/build.yml/badge.svg)](https://github.com/AraujoJordan/Kobaia/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen)](LICENSE)
 
@@ -52,13 +52,13 @@ No rule to declare, no `launchActivity()` to remember, and nothing to import but
 ## Download
 
 Kobaia is a test-only dependency, so `androidTestImplementation` keeps it out of your release APK.
-Replace `x.x.x` with the version in the JitPack badge above.
+Replace `x.x.x` with the version in the Maven Central badge above.
 
 ```gradle
-androidTestImplementation 'com.github.AraujoJordan:Kobaia:x.x.x'
+androidTestImplementation 'io.github.araujojordan:kobaia:x.x.x'
 ```
 
-It comes from JitPack, so that repository has to be declared:
+It is published to Maven Central, so ensure `mavenCentral()` is declared in your repositories:
 
 ```gradle
 // settings.gradle
@@ -66,7 +66,6 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven { url 'https://jitpack.io' }
     }
 }
 ```
