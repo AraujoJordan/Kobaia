@@ -85,10 +85,17 @@ which is how the two entry points stay identical. **Adding an interaction means 
   on success — because a lambda can be wrapped the same way a JUnit `Statement` can.
 
 Both paths call the same `AppUnderTest` object in `KobaiaRules.kt` for `clearData()` (shared prefs,
-databases, files) and `finishAllActivities()`. Keep it that way: the two entry points must not
-drift. One deliberate asymmetry, documented in the README: the rule clears state around `@Before`,
-while `launch` clears inside the test method, so `@Before` seeding survives the rule but not
-`launch`.
+databases, files), `finishAllActivities()` and `resetRotation()`. Keep it that way: the two entry
+points must not drift. One deliberate asymmetry, documented in the README: the rule clears state
+around `@Before`, while `launch` clears inside the test method, so `@Before` seeding survives the
+rule but not `launch`.
+
+`resetRotation()` exists because `rotateLandscape` freezes the display until `rotateNatural` runs,
+and a test that fails between the two would otherwise leak the freeze into its own retries and
+every test after it. It runs on the way *in* (per attempt), never on the way out — a rotation the
+failing test froze is part of the state left behind for inspection. It is best-effort and swallows
+its own failures, like `FailureScreenshot`: housekeeping must not become the failure a test
+reports.
 
 **The sample is the test suite.** `sample/src/androidTest/…/KobaiaSampleTest.kt` covers the
 `launch` style with text finders, `KobaiaInstrumentedTest.kt` covers the rule + infix style on Views,
@@ -136,7 +143,8 @@ the launch paths, where it would tax every test in the suite for a race the find
 for when a test probes for something it expects to be absent. The scrolling functions are bounded
 the same way: `maximumScrolls` is a swipe budget, and `scrollUntilFound` checks before every swipe
 rather than delegating to a scroll-into-view helper that rewinds to the top and swipes dozens of
-times per call.
+times per call. It also stops swiping when `UiObject2.scroll` reports the list cannot scroll any
+further — a target that is not there would otherwise be charged a full second per remaining swipe.
 
 **Only the `By`/`UiObject2` half of UIAutomator.** Nothing here goes through `UiObject`,
 `UiSelector` or `UiScrollable` — scrolling finds its container with `By.scrollable(true)` and
@@ -170,6 +178,19 @@ every view at once and then acts on them one at a time, so the first one navigat
 rest pointing at nodes that no longer exist — `UiObject2` throws `StaleObjectException` for that,
 which would break the rule above. `actOnAll` catches it per view and carries on. Any new
 interaction that acts on a *list* of views needs the same treatment.
+
+**Gestures work on screen coordinates or one already-found view, never on a list.** `swipe` moves
+a finger across the middle of the first scrollable view — or of the whole screen when there is
+none — because a drag is delivered to whatever is under the finger when it lands: a swipe aimed at
+a list but starting on a fixed header scrolls nothing. It stays deliberately short of the edges,
+where the system gestures live. `pinch` acts on the first match only — pinching every match would
+pinch a view the first pinch just moved. `doubleClick` is the exception that proves the rule: it
+goes through `actOnAll` because a double tap cannot navigate away on the first tap.
+
+**`check`/`uncheck` set a state, they do not toggle.** A click on a checkbox inverts whatever is
+there, so a retried flaky test that clicked blindly would undo its own first attempt. `setChecked`
+clicks only when the view is not in the wanted state yet, then confirms with
+`Until.checked(wanted)` — the same "make sure it actually happened" discipline as `setTextOn`.
 
 **Absence has two meanings and they run opposite ways.** `assertNotVisible` polls `Until.hasObject`
 and fails the moment the view appears, so a longer `wait` makes it *stricter*; `waitUntilGone`

@@ -97,6 +97,7 @@ fun <T : Activity> launch(
     retryOnFailure(activityClass.simpleName, flakyAttempts) {
         AppUnderTest.finishAllActivities()
         AppUnderTest.clearData()
+        AppUnderTest.resetRotation()
         scenarioOf(activityClass, startIntent).use { KobaiaScope(it).test() }
     }
 

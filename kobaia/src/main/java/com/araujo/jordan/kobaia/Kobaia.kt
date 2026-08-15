@@ -1,7 +1,11 @@
 package com.araujo.jordan.kobaia
 
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
+import android.graphics.Rect
 import android.util.Log
 import android.view.KeyCharacterMap
 import androidx.test.espresso.IdlingPolicies
@@ -21,6 +25,7 @@ import org.junit.rules.RuleChain
 import org.junit.rules.TestRule
 import org.junit.runner.Description
 import org.junit.runners.model.Statement
+import java.io.File
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 
@@ -143,6 +148,31 @@ class Kobaia<T : Activity>(
          * top of the screen between two of the checks [scrollUntilFound] makes.
          */
         private const val SCROLL_PERCENTAGE = 0.8f
+
+        /**
+         * How much of a view a pinch covers by default: from (or to) its centre, halfway to (or
+         * from) its edges.
+         */
+        private const val PINCH_PERCENTAGE = 0.5f
+
+        /**
+         * How much of the screen a [swipe] covers by default.
+         *
+         * Short of edge to edge on purpose: system gestures live at the edges of the screen, and a
+         * swipe that starts in the status bar opens the notification shade instead of scrolling.
+         */
+        private const val SWIPE_PERCENTAGE = 0.75f
+
+        /**
+         * How smoothly a [swipe] moves, in the steps UIAutomator divides it into
+         */
+        private const val SWIPE_STEPS = 50
+
+        /**
+         * The label clipboard content is copied under. It is what a clipboard manager shows as the
+         * source of the clip, and nothing reads it back.
+         */
+        private const val CLIPBOARD_LABEL = "kobaia"
 
         /**
          * The buttons of the system permission dialog, whose ids moved from the package installer
@@ -600,6 +630,105 @@ class Kobaia<T : Activity>(
          */
         fun assertTagUnchecked(tag: String, wait: Long = DEFAULT_WAITING_TIME) =
             assertFalse("$tag should be unchecked", requireVisible(By.res(tag), wait, tag).isChecked)
+
+        /**
+         * Assert that the view with this text is on screen and clickable
+         */
+        fun assertClickable(text: String, wait: Long = DEFAULT_WAITING_TIME) =
+            assertTrue("$text should be clickable", requireVisible(By.text(text), wait, text).isClickable)
+
+        /**
+         * Assert that the view with this text is on screen and not clickable
+         */
+        fun assertNotClickable(text: String, wait: Long = DEFAULT_WAITING_TIME) =
+            assertFalse("$text should not be clickable", requireVisible(By.text(text), wait, text).isClickable)
+
+        /**
+         * Assert that the view with this Compose testTag is on screen and clickable
+         */
+        fun assertTagClickable(tag: String, wait: Long = DEFAULT_WAITING_TIME) =
+            assertTrue("$tag should be clickable", requireVisible(By.res(tag), wait, tag).isClickable)
+
+        /**
+         * Assert that the view with this Compose testTag is on screen and not clickable
+         */
+        fun assertTagNotClickable(tag: String, wait: Long = DEFAULT_WAITING_TIME) =
+            assertFalse("$tag should not be clickable", requireVisible(By.res(tag), wait, tag).isClickable)
+
+        /**
+         * Put the view with this text into the checked state, whichever state it is in now —
+         * a checkbox, a switch, a radio button. Unlike [click], calling it twice changes nothing.
+         * This method won't fail your test if the view is not on screen
+         * @param text the text of the view to check
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         * @return whether the view ended up checked
+         */
+        fun check(text: String, wait: Long = DEFAULT_WAITING_TIME): Boolean =
+            setChecked(By.text(text), true, wait)
+
+        /**
+         * Put the view with this content description into the checked state. @see check
+         * @param text the description of the view to check
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         * @return whether the view ended up checked
+         */
+        fun checkDescription(text: String, wait: Long = DEFAULT_WAITING_TIME): Boolean =
+            setChecked(By.desc(text), true, wait)
+
+        /**
+         * Put the view with this Compose testTag (or View resource id) into the checked state.
+         * @see check
+         * @param tag the testTag of the view to check
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         * @return whether the view ended up checked
+         */
+        fun checkTag(tag: String, wait: Long = DEFAULT_WAITING_TIME): Boolean =
+            setChecked(By.res(tag), true, wait)
+
+        /**
+         * Put the view with this text into the unchecked state, whichever state it is in now.
+         * This method won't fail your test if the view is not on screen
+         * @param text the text of the view to uncheck
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         * @return whether the view ended up unchecked
+         */
+        fun uncheck(text: String, wait: Long = DEFAULT_WAITING_TIME): Boolean =
+            setChecked(By.text(text), false, wait)
+
+        /**
+         * Put the view with this content description into the unchecked state. @see uncheck
+         * @param text the description of the view to uncheck
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         * @return whether the view ended up unchecked
+         */
+        fun uncheckDescription(text: String, wait: Long = DEFAULT_WAITING_TIME): Boolean =
+            setChecked(By.desc(text), false, wait)
+
+        /**
+         * Put the view with this Compose testTag (or View resource id) into the unchecked state.
+         * @see uncheck
+         * @param tag the testTag of the view to uncheck
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         * @return whether the view ended up unchecked
+         */
+        fun uncheckTag(tag: String, wait: Long = DEFAULT_WAITING_TIME): Boolean =
+            setChecked(By.res(tag), false, wait)
+
+        /**
+         * Click the view only when it is not in the wanted state yet, and confirm it arrived.
+         *
+         * A click toggles, so a test that wants a checkbox checked cannot just click it — on a
+         * retry of a flaky test the view may already be checked, and the click would undo it.
+         * @param selector what the view has to match
+         * @param wanted the state the view should end up in
+         * @param wait how long to wait for the view before giving up, in milliseconds
+         * @return whether the view ended up in the wanted state
+         */
+        private fun setChecked(selector: BySelector, wanted: Boolean, wait: Long): Boolean {
+            val view = findFirst(selector, wait) ?: return false
+            if (view.isChecked != wanted) view.click()
+            return view.wait(Until.checked(wanted), FOCUS_WAITING_TIME) == true
+        }
 
         /**
          * The first view the selector matches, failing the test if it never showed up.
@@ -1063,21 +1192,211 @@ class Kobaia<T : Activity>(
          * @param find how the target is looked up between swipes
          */
         private fun scrollUntilFound(maximumScrolls: Int, find: () -> UiObject2?): UiObject2? {
-            repeat(maximumScrolls.coerceAtLeast(1)) {
+            for (swipe in 1..maximumScrolls.coerceAtLeast(1)) {
                 find()?.let { return it }
-                // Looked up again on every pass rather than held on to: a list that recycles its
-                // rows, as a RecyclerView and a LazyColumn both do, can replace the very node the
-                // last swipe was performed on. Nothing scrollable on screen means the list is
-                // still loading — like every other finder, this one reports that with null.
-                // Waited for properly rather than probed for: a screen that has only just been
-                // launched has not composed its list yet, and a quick look would conclude there is
-                // nothing to scroll a frame before there is. The full wait is only ever paid when
-                // there is genuinely nothing scrollable, which is the miss this reports as null.
                 val scrollableView =
                     findFirst(By.scrollable(true), DEFAULT_WAITING_TIME) ?: return null
-                scrollableView.scroll(Direction.DOWN, SCROLL_PERCENTAGE)
+                if (!scrollableView.scroll(Direction.DOWN, SCROLL_PERCENTAGE)) break
             }
             return find()
+        }
+
+        // ---------------------------------------------------------------------------------------
+        // Gestures
+        // ---------------------------------------------------------------------------------------
+
+        /**
+         * Swipe across the middle of the first scrollable view — or of the whole screen when
+         * there is none — in the given direction.
+         *
+         * The gesture is aimed at the view because a drag belongs to whatever is under the finger
+         * when it lands: a swipe meant for a list but starting on a fixed header above it is
+         * delivered to the header, and scrolls nothing at all.
+         *
+         * This is the raw gesture, for the things a scroll does not reach: pulling a list down to
+         * refresh it, turning a pager's page. To *find* something inside a list, use [scrollTo]
+         * instead — it checks for the target between swipes rather than going past it.
+         *
+         * The swipe covers [percent] of the view, short of its edges on purpose: system gestures
+         * live at the edges of the screen, and a swipe starting there opens the notification
+         * shade instead of scrolling.
+         * @param direction which way the finger moves (Direction.UP scrolls the content down)
+         * @param percent how much of the view the swipe covers (Default: 0.75)
+         * @param steps how smoothly it moves, in the steps UIAutomator divides it into (Default: 50)
+         * @return whether the swipe was performed
+         */
+        fun swipe(
+            direction: Direction,
+            percent: Float = SWIPE_PERCENTAGE,
+            steps: Int = SWIPE_STEPS
+        ): Boolean {
+            val device = device()
+            val area = findFirst(By.scrollable(true), QUICK_WAITING_TIME)?.visibleBounds
+                ?: Rect(0, 0, device.displayWidth, device.displayHeight)
+            val centerX = area.centerX()
+            val centerY = area.centerY()
+            val across = (area.width() * percent / 2).toInt()
+            val down = (area.height() * percent / 2).toInt()
+            return when (direction) {
+                Direction.UP ->
+                    device.swipe(centerX, centerY + down, centerX, centerY - down, steps)
+                Direction.DOWN ->
+                    device.swipe(centerX, centerY - down, centerX, centerY + down, steps)
+                Direction.LEFT ->
+                    device.swipe(centerX + across, centerY, centerX - across, centerY, steps)
+                Direction.RIGHT ->
+                    device.swipe(centerX - across, centerY, centerX + across, centerY, steps)
+            }
+        }
+
+        /**
+         * Double click every UiObject2 with the given text. This method won't fail your test if
+         * nothing is clicked
+         * This method also waits for it for some milliseconds
+         * @param text the text that you want to be double clicked in your screen
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         * @return whether anything was double clicked at all
+         */
+        fun doubleClick(text: String, wait: Long = DEFAULT_WAITING_TIME): Boolean =
+            doubleClickAll(By.text(text), wait)
+
+        /**
+         * Double click every UiObject2 whose text matches the pattern. This method won't fail your
+         * test if nothing is clicked
+         * @param pattern the text pattern that you want to be double clicked in your screen
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         * @return whether anything was double clicked at all
+         */
+        fun doubleClick(pattern: Pattern, wait: Long = DEFAULT_WAITING_TIME): Boolean =
+            doubleClickAll(By.text(pattern), wait)
+
+        /**
+         * Double click every UiObject2 with the given content description. This method won't fail
+         * your test if nothing is clicked
+         * @param text the description of what you want to be double clicked in your screen
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         * @return whether anything was double clicked at all
+         */
+        fun doubleClickDescription(text: String, wait: Long = DEFAULT_WAITING_TIME): Boolean =
+            doubleClickAll(By.desc(text), wait)
+
+        /**
+         * Double click every UiObject2 with the given Compose testTag (or View resource id). This
+         * method won't fail your test if nothing is clicked
+         * @param tag the testTag of what you want to be double clicked in your screen
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         * @return whether anything was double clicked at all
+         */
+        fun doubleClickTag(tag: String, wait: Long = DEFAULT_WAITING_TIME): Boolean =
+            doubleClickAll(By.res(tag), wait)
+
+        /**
+         * Double click every view the selector matches: two taps on its centre, close enough
+         * together to read as one gesture
+         */
+        private fun doubleClickAll(selector: BySelector, wait: Long): Boolean =
+            actOnAll(selector, wait) { view ->
+                val center = view.visibleCenter
+                device().click(center.x, center.y)
+                device().click(center.x, center.y)
+            }
+
+        /**
+         * Pinch the first view with this text open, as when zooming into a map or a photo.
+         * This method won't fail your test if the view is not on screen
+         * @param text the text of the view to pinch
+         * @param percent how much of the view the pinch covers (Default: 0.5)
+         * @param wait how long you want to wait for the view (Default is 5000 milliseconds)
+         * @return whether the pinch was performed
+         */
+        fun pinchOut(
+            text: String,
+            percent: Float = PINCH_PERCENTAGE,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): Boolean = pinch(By.text(text), percent, open = true, wait = wait)
+
+        /**
+         * Pinch the first view with this content description open, as when zooming into a map or
+         * a photo. @see pinchOut
+         * @param text the description of the view to pinch
+         * @param percent how much of the view the pinch covers (Default: 0.5)
+         * @param wait how long you want to wait for the view (Default is 5000 milliseconds)
+         * @return whether the pinch was performed
+         */
+        fun pinchOutDescription(
+            text: String,
+            percent: Float = PINCH_PERCENTAGE,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): Boolean = pinch(By.desc(text), percent, open = true, wait = wait)
+
+        /**
+         * Pinch the first view with this Compose testTag (or View resource id) open, as when
+         * zooming into a map or a photo. @see pinchOut
+         * @param tag the testTag of the view to pinch
+         * @param percent how much of the view the pinch covers (Default: 0.5)
+         * @param wait how long you want to wait for the view (Default is 5000 milliseconds)
+         * @return whether the pinch was performed
+         */
+        fun pinchOutTag(
+            tag: String,
+            percent: Float = PINCH_PERCENTAGE,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): Boolean = pinch(By.res(tag), percent, open = true, wait = wait)
+
+        /**
+         * Pinch the first view with this text closed, as when zooming out of a map or a photo.
+         * This method won't fail your test if the view is not on screen
+         * @param text the text of the view to pinch
+         * @param percent how much of the view the pinch covers (Default: 0.5)
+         * @param wait how long you want to wait for the view (Default is 5000 milliseconds)
+         * @return whether the pinch was performed
+         */
+        fun pinchIn(
+            text: String,
+            percent: Float = PINCH_PERCENTAGE,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): Boolean = pinch(By.text(text), percent, open = false, wait = wait)
+
+        /**
+         * Pinch the first view with this content description closed, as when zooming out of a map
+         * or a photo. @see pinchIn
+         * @param text the description of the view to pinch
+         * @param percent how much of the view the pinch covers (Default: 0.5)
+         * @param wait how long you want to wait for the view (Default is 5000 milliseconds)
+         * @return whether the pinch was performed
+         */
+        fun pinchInDescription(
+            text: String,
+            percent: Float = PINCH_PERCENTAGE,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): Boolean = pinch(By.desc(text), percent, open = false, wait = wait)
+
+        /**
+         * Pinch the first view with this Compose testTag (or View resource id) closed, as when
+         * zooming out of a map or a photo. @see pinchIn
+         * @param tag the testTag of the view to pinch
+         * @param percent how much of the view the pinch covers (Default: 0.5)
+         * @param wait how long you want to wait for the view (Default is 5000 milliseconds)
+         * @return whether the pinch was performed
+         */
+        fun pinchInTag(
+            tag: String,
+            percent: Float = PINCH_PERCENTAGE,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): Boolean = pinch(By.res(tag), percent, open = false, wait = wait)
+
+        /**
+         * Pinch the first view the selector matches, in or out. Unlike a click, a pinch is one
+         * gesture on one view, so only the first match is pinched — pinching every match would
+         * pinch a view that the first one just zoomed out from under the second's coordinates.
+         * @return whether the pinch was performed
+         */
+        private fun pinch(selector: BySelector, percent: Float, open: Boolean, wait: Long): Boolean {
+            val view = findFirst(selector, wait) ?: return false
+            // UIAutomator reports nothing about how the gesture landed, so "performed" is all the
+            // return can honestly promise.
+            if (open) view.pinchOpen(percent) else view.pinchClose(percent)
+            return true
         }
 
         // ---------------------------------------------------------------------------------------
@@ -1177,6 +1496,60 @@ class Kobaia<T : Activity>(
         fun denyPermission(wait: Long = DEFAULT_WAITING_TIME): Boolean =
             clickFirst(By.res(DENY_PERMISSION_BUTTONS), wait) ||
                 clickFirst(By.text(DENY_PERMISSION_LABELS), QUICK_WAITING_TIME)
+
+        /**
+         * Wake the device up, as pressing the power button would. The screen may still be locked;
+         * the finders work through the lock screen as through anything else
+         */
+        fun wakeUp() = device().wakeUp()
+
+        /**
+         * Press any key, by its [android.view.KeyEvent] keycode — `KEYCODE_DEL`, `KEYCODE_TAB`,
+         * the volume keys. [pressBack], [pressEnter] and friends are this with the keycode filled in
+         * @param keyCode the key to press, one of the `KEYCODE_*` constants
+         */
+        fun pressKey(keyCode: Int): Boolean = device().pressKeyCode(keyCode)
+
+        /**
+         * Photograph the screen now, on demand — [FailureScreenshot] does it on a failure, this
+         * does it because the test asked.
+         *
+         * The file has to live somewhere the app under test may write, such as its cache
+         * directory; screenshots go missing silently on a path it may not.
+         * @param file where the picture goes
+         * @return whether the screenshot was taken
+         */
+        fun screenshot(file: File): Boolean = device().takeScreenshot(file)
+
+        /**
+         * Copy a text onto the device clipboard, so a test can paste it — into the field being
+         * tested, or into another app.
+         * @param text the text to copy
+         */
+        fun copyToClipboard(text: String) {
+            clipboard().setPrimaryClip(ClipData.newPlainText(CLIPBOARD_LABEL, text))
+        }
+
+        /**
+         * The text currently on the device clipboard, or null when it is empty.
+         *
+         * Reading the clipboard is something only the foreground app may do since Android 10, and
+         * mid-test the foreground app is the one under test — which is whose clipboard this reads.
+         */
+        fun clipboardText(): String? =
+            clipboard().primaryClip
+                ?.takeIf { it.itemCount > 0 }
+                ?.getItemAt(0)
+                ?.text
+                ?.toString()
+
+        /**
+         * The clipboard of the app under test (not of the instrumentation APK)
+         */
+        private fun clipboard(): ClipboardManager =
+            InstrumentationRegistry.getInstrumentation()
+                .targetContext
+                .getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
 
         /**
          * Turn the device to landscape and hold it there.

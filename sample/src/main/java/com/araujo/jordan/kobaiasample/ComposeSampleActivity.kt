@@ -66,117 +66,121 @@ private fun ComposeSampleScreen(modifier: Modifier = Modifier) {
     var typed by remember { mutableStateOf("") }
     var accepted by remember { mutableStateOf(false) }
 
-    Column(
+    // The cards are list items rather than a fixed header above the list, so that the whole
+    // screen scrolls — the way real screens are laid out, and the way a swipe anywhere on it
+    // engages the list.
+    LazyColumn(
         modifier = modifier
             .background(Color(0xFFF2F4F7))
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
             ) {
-                Button(
-                    onClick = { greeting = "Kobaia clicked me!" },
-                    modifier = Modifier.testTag("greetButton")
-                ) {
-                    Text("CLICK ME!")
-                }
-                Text(
-                    text = greeting,
-                    modifier = Modifier
-                        .testTag("greeting")
-                        .combinedClickable(
-                            onClick = { },
-                            onLongClick = { greeting = "Kobaia long clicked me!" }
-                        )
-                )
-            }
-        }
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Checkbox(
-                    checked = accepted,
-                    onCheckedChange = { accepted = it },
-                    modifier = Modifier.testTag("acceptCheckbox")
-                )
-                Button(
-                    onClick = { },
-                    enabled = false,
-                    modifier = Modifier.testTag("disabledButton")
-                ) {
-                    Text("CANNOT CLICK ME")
-                }
-            }
-        }
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                TextField(
-                    value = typed,
-                    onValueChange = { typed = it },
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("nameField"),
-                    placeholder = { Text("Type here...") }
-                )
-                Text(
-                    text = "You typed: $typed",
-                    modifier = Modifier.testTag("typedBack")
-                )
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Button(
+                        onClick = { greeting = "Kobaia clicked me!" },
+                        modifier = Modifier.testTag("greetButton")
+                    ) {
+                        Text("CLICK ME!")
+                    }
+                    Text(
+                        text = greeting,
+                        modifier = Modifier
+                            .testTag("greeting")
+                            .combinedClickable(
+                                onClick = { },
+                                onLongClick = { greeting = "Kobaia long clicked me!" }
+                            )
+                    )
+                }
             }
         }
 
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items((1..40).toList()) { item ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(
-                        text = "Item #$item",
+                    Checkbox(
+                        checked = accepted,
+                        onCheckedChange = { accepted = it },
+                        modifier = Modifier.testTag("acceptCheckbox")
+                    )
+                    Button(
+                        onClick = { },
+                        enabled = false,
+                        modifier = Modifier.testTag("disabledButton")
+                    ) {
+                        Text("CANNOT CLICK ME")
+                    }
+                }
+            }
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    TextField(
+                        value = typed,
+                        onValueChange = { typed = it },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp)
-                            .testTag("item$item")
+                            .testTag("nameField"),
+                        placeholder = { Text("Type here...") }
+                    )
+                    Text(
+                        text = "You typed: $typed",
+                        modifier = Modifier.testTag("typedBack")
                     )
                 }
+            }
+        }
+
+        items((1..40).toList()) { item ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Text(
+                    text = "Item #$item",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp)
+                        .testTag("item$item")
+                )
             }
         }
     }

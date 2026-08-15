@@ -68,6 +68,11 @@ assertUnchecked("Remember me")
 assertTagEnabled("loginButton")
 assertTagChecked("acceptCheckbox")
 
+assertClickable("ENTER")
+assertNotClickable("ENTER")
+assertTagClickable("loginButton")
+assertTagNotClickable("disabledButton")
+
 // Boolean queries
 isVisible("Rate this app")
 containsText("Welcome")                    // substring match
@@ -100,6 +105,14 @@ clickTag("loginButton")
 longClick("Terms of use")
 longClickDescription("fluffy")
 longClickTag("greeting")
+
+// Checkboxes & switches, set to a known state instead of toggled —
+// calling check on an already checked box changes nothing
+check("Accept terms")
+uncheck("Accept terms")
+checkDescription("termsCheckbox")
+checkTag("acceptCheckbox")
+uncheckTag("acceptCheckbox")
 ```
 
 ---
@@ -123,7 +136,7 @@ clearTextInTag("emailField")
 
 ## 📜 Scrolling
 
-Scrolls scrollable containers (`LazyColumn`, `RecyclerView`, `ScrollView`, `ListView`) forward until the target view appears:
+Scrolls scrollable containers (`LazyColumn`, `RecyclerView`, `ScrollView`, `ListView`) forward until the target view appears, the list runs out, or `maximumScrolls` swipes have been made:
 
 ```kotlin
 scrollTo("SCROLL TO CLICK ME!")
@@ -131,6 +144,28 @@ scrollTo(Pattern.compile("Item #\\d+"))
 scrollToDescription("footer_logo")
 scrollToTag("item40")
 scrollToDescription(Pattern.compile("row_\\d+"), maximumScrolls = 20)
+```
+
+---
+
+## 🤏 Gestures
+
+The raw gestures, for the things a scroll does not reach — pulling a list down to refresh it or
+turning a pager's page. A swipe moves across the middle of the first scrollable view (or of the
+screen when there is none), so it lands on the thing it is meant to move. To *find* something
+inside a list, keep using `scrollTo`:
+
+```kotlin
+swipe(Direction.UP)                      // across the middle of the first scrollable view
+swipe(Direction.LEFT, percent = 0.9f)    // turn a pager's page
+
+doubleClick("Like")
+doubleClickDescription("profile_picture")
+doubleClickTag("mapMarker")
+
+pinchOut("Map")                          // zoom in
+pinchInTag("photoView")                  // zoom out
+pinchOutDescription("floor_plan", percent = 0.8f)
 ```
 
 ---
@@ -146,6 +181,14 @@ pressEnter()
 pressRecentApps()
 closeKeyboard()
 openNotifications()
+
+wakeUp()
+pressKey(KeyEvent.KEYCODE_DEL)             // any key, by its keycode
+screenshot(File(context.cacheDir, "screen.png"))
+
+// The device clipboard
+copyToClipboard("user@kobaia.com")
+clipboardText()                            // what is on the clipboard now
 
 // System Runtime Permissions
 allowPermission()

@@ -1,7 +1,9 @@
 package com.araujo.jordan.kobaia
 
+import androidx.test.uiautomator.Direction
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
+import java.io.File
 import java.util.regex.Pattern
 
 /**
@@ -375,6 +377,132 @@ interface KobaiaInteractions {
 
     /** Put the device back the way it was, and let it rotate on its own again */
     fun rotateNatural() = Kobaia.rotateNatural()
+
+    /**
+     * Fail the test unless the view with this text is on screen and clickable
+     */
+    infix fun assertClickable(text: String) = Kobaia.assertClickable(text)
+
+    /**
+     * Fail the test unless the view with this text is on screen and not clickable
+     */
+    infix fun assertNotClickable(text: String) = Kobaia.assertNotClickable(text)
+
+    /**
+     * Fail the test unless the view with this Compose testTag is on screen and clickable
+     */
+    infix fun assertTagClickable(tag: String) = Kobaia.assertTagClickable(tag)
+
+    /**
+     * Fail the test unless the view with this Compose testTag is on screen and not clickable
+     */
+    infix fun assertTagNotClickable(tag: String) = Kobaia.assertTagNotClickable(tag)
+
+    /**
+     * Check the view with this text, whichever state it is in now: `kobaia check "Accept terms"`
+     */
+    infix fun check(text: String): Boolean = Kobaia.check(text)
+
+    /**
+     * Check the view with this content description, whichever state it is in now
+     */
+    infix fun checkDescription(text: String): Boolean = Kobaia.checkDescription(text)
+
+    /**
+     * Check the view with this Compose testTag, whichever state it is in now
+     */
+    infix fun checkTag(tag: String): Boolean = Kobaia.checkTag(tag)
+
+    /**
+     * Uncheck the view with this text, whichever state it is in now
+     */
+    infix fun uncheck(text: String): Boolean = Kobaia.uncheck(text)
+
+    /**
+     * Uncheck the view with this content description, whichever state it is in now
+     */
+    infix fun uncheckDescription(text: String): Boolean = Kobaia.uncheckDescription(text)
+
+    /**
+     * Uncheck the view with this Compose testTag, whichever state it is in now
+     */
+    infix fun uncheckTag(tag: String): Boolean = Kobaia.uncheckTag(tag)
+
+    /**
+     * Swipe across the middle of the screen: `kobaia swipe Direction.UP`
+     */
+    infix fun swipe(direction: Direction): Boolean = Kobaia.swipe(direction)
+
+    /**
+     * Double click every view with this exact text: `kobaia doubleClick "Like"`
+     */
+    infix fun doubleClick(text: String): Boolean = Kobaia.doubleClick(text)
+
+    /**
+     * Double click every view whose text matches this pattern
+     */
+    infix fun doubleClick(pattern: Pattern): Boolean = Kobaia.doubleClick(pattern)
+
+    /**
+     * Double click every view with this content description
+     */
+    infix fun doubleClickDescription(text: String): Boolean = Kobaia.doubleClickDescription(text)
+
+    /**
+     * Double click every view with this Compose testTag
+     */
+    infix fun doubleClickTag(tag: String): Boolean = Kobaia.doubleClickTag(tag)
+
+    /**
+     * Pinch the first view with this text open, as when zooming in: `kobaia pinchOut "Map"`
+     */
+    infix fun pinchOut(text: String): Boolean = Kobaia.pinchOut(text)
+
+    /**
+     * Pinch the first view with this content description open
+     */
+    infix fun pinchOutDescription(text: String): Boolean = Kobaia.pinchOutDescription(text)
+
+    /**
+     * Pinch the first view with this Compose testTag open
+     */
+    infix fun pinchOutTag(tag: String): Boolean = Kobaia.pinchOutTag(tag)
+
+    /**
+     * Pinch the first view with this text closed, as when zooming out
+     */
+    infix fun pinchIn(text: String): Boolean = Kobaia.pinchIn(text)
+
+    /**
+     * Pinch the first view with this content description closed
+     */
+    infix fun pinchInDescription(text: String): Boolean = Kobaia.pinchInDescription(text)
+
+    /**
+     * Pinch the first view with this Compose testTag closed
+     */
+    infix fun pinchInTag(tag: String): Boolean = Kobaia.pinchInTag(tag)
+
+    /**
+     * Press any key, by its KeyEvent keycode: `kobaia pressKey KeyEvent.KEYCODE_DEL`
+     */
+    infix fun pressKey(keyCode: Int): Boolean = Kobaia.pressKey(keyCode)
+
+    /**
+     * Photograph the screen into this file: `kobaia screenshot file`
+     */
+    infix fun screenshot(file: File): Boolean = Kobaia.screenshot(file)
+
+    /**
+     * Copy this text onto the device clipboard: `kobaia copyToClipboard "user@kobaia.com"`
+     */
+    infix fun copyToClipboard(text: String) = Kobaia.copyToClipboard(text)
+
+    /** The text currently on the device clipboard, or null when it is empty */
+    fun clipboardText(): String? = Kobaia.clipboardText()
+
+    /** Wake the device up, as pressing the power button would */
+    fun wakeUp() = Kobaia.wakeUp()
 
     /**
      * A text on its way to a field: the first half of `type "…" into "…"`

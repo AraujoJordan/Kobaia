@@ -9,6 +9,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.uiautomator.Configurator
 import androidx.test.uiautomator.ResultsReporter
+import androidx.test.uiautomator.UiDevice
 import androidx.test.runner.lifecycle.Stage
 import org.junit.AssumptionViolatedException
 import org.junit.rules.TestRule
@@ -36,6 +37,20 @@ internal object AppUnderTest {
         clearPreferences()
         clearDatabases()
         clearFiles()
+    }
+
+    fun resetRotation() {
+        try {
+            val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+            if (device.isNaturalOrientation) {
+                device.unfreezeRotation()
+            } else {
+                device.setOrientationNatural()
+                device.unfreezeRotation()
+            }
+        } catch (couldNotReset: Throwable) {
+            Log.w(KOBAIA_TAG, "Could not reset the display orientation", couldNotReset)
+        }
     }
 
     /**
@@ -156,6 +171,7 @@ internal class ClearDataRule : TestRule {
         object : Statement() {
             override fun evaluate() {
                 AppUnderTest.clearData()
+                AppUnderTest.resetRotation()
                 base.evaluate()
                 // Deliberately not in a finally block: when a test fails, the state it left
                 // behind survives so it can be inspected.
@@ -265,17 +281,11 @@ internal object UiAutomatorTimeouts {
 
     private var tuned = false
 
-    fun tuneOnce() {
+    fun tuneOnce(idleTimeout: Long = 500L) {
         if (tuned || !Kobaia.tuneUiAutomatorTimeouts) return
         tuned = true
-        Configurator.getInstance().waitForIdleTimeout = IDLE_TIMEOUT
+        Configurator.getInstance().waitForIdleTimeout = idleTimeout
     }
-
-    /**
-     * Matches the half second of quiet UIAutomator looks for, so a screen that is already still
-     * is never waited on, and one that is moving is given up on rather than waited out.
-     */
-    private const val IDLE_TIMEOUT = 500L
 }
 
 /**

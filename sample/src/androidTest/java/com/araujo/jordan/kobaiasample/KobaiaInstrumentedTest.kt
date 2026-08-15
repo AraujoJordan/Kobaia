@@ -9,6 +9,7 @@ import com.araujo.jordan.kobaia.Kobaia.Companion.device
 import com.araujo.jordan.kobaia.Kobaia.Companion.scrollTo
 import com.araujo.jordan.kobaia.Kobaia.Companion.typeOnKeyboard
 import com.araujo.jordan.kobaia.Kobaia.Companion.waitUntilGone
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -27,14 +28,14 @@ class KobaiaInstrumentedTest {
     @Test(expected = java.lang.AssertionError::class)
     fun shouldFailIfNotFind() {
         kobaia.launchActivity()
-        assertVisible("This text doesn't exist!")
+        assertVisible("This text doesn't exist!", 1000)
     }
 
     @Test
     fun testShouldContinueIfExceptionIsContained() {
         kobaia.launchActivity()
         try {
-            assertVisible("This text doesn't exist!")
+            assertVisible("This text doesn't exist!", 1000)
         } catch (err: java.lang.AssertionError) {
             assertVisible("CLICK ME!")
         }
@@ -68,6 +69,17 @@ class KobaiaInstrumentedTest {
     }
 
     /**
+     * Scrolling for a view the list does not have stops at the end of the list rather than
+     * spending the whole swipe budget — the miss costs the handful of swipes the list is tall,
+     * not the twenty it was allowed.
+     */
+    @Test
+    fun scrollMissStopsAtTheEndOfTheList() {
+        kobaia.launchActivity()
+        assertNull(scrollTo("This row is not in the list!"))
+    }
+
+    /**
      * The very same test, written with the infix flavour of the very same functions
      */
     @Test
@@ -81,5 +93,32 @@ class KobaiaInstrumentedTest {
         device().pressBack()
         kobaia scrollTo "SCROLL TO CLICK ME!"
         kobaia assertVisible "SCROLL TO CLICK ME!"
+    }
+
+    /**
+     * The checkbox is set to a known state rather than toggled: checking an already checked box
+     * must leave it checked, which is what makes a retried test safe to repeat.
+     */
+    @Test
+    fun checksAndUnchecksTheTerms() {
+        kobaia.launchActivity()
+        assertTrue(kobaia check "Accept terms")
+        kobaia assertChecked "Accept terms"
+        // already checked, by description this time: nothing changes, and that is the point
+        assertTrue(kobaia checkDescription "termsCheckbox")
+        kobaia assertChecked "Accept terms"
+        assertTrue(kobaia uncheck "Accept terms")
+        kobaia assertUnchecked "Accept terms"
+    }
+
+    /**
+     * Clickability is asserted the same way the other state is, and a double click is the click
+     * family with one more tap
+     */
+    @Test
+    fun assertsClickableAndDoubleClicks() {
+        kobaia.launchActivity()
+        kobaia assertClickable "CLICK ME!"
+        assertTrue(kobaia doubleClick "CLICK ME!")
     }
 }
