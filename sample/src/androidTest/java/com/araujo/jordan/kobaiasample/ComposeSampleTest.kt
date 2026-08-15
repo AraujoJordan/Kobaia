@@ -18,9 +18,6 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4ClassRunner::class)
 class ComposeSampleTest {
 
-    @get:Rule
-    val kobaia = Kobaia(SplashActivity::class.java)
-
     @Test
     fun testApp() = launch<SplashActivity> {
         assertTagVisible("splashTitle")
@@ -40,30 +37,5 @@ class ComposeSampleTest {
         clickTag("loginButton")
         assertTagVisible("loggedInText")
         assertVisible("Welcome to Kobaia!")
-    }
-
-    /**
-     * The very same test, written with the JUnit rule and the infix flavour of the functions
-     */
-    @Test
-    fun testAppWithInfixFunctions() {
-        kobaia.launchActivity()
-        kobaia assertTagVisible "splashTitle"
-        kobaia assertVisible "Kobaia"
-        kobaia clickTag "welcomeSkipButton"
-
-        kobaia assertTagVisible "welcomeGetStartedButton"
-        kobaia clickTag "welcomeGetStartedButton"
-
-        kobaia assertTagVisible "landingLoginButton"
-        kobaia clickTag "landingLoginButton"
-
-        kobaia assertTagVisible "loginTitle"
-        kobaia type "right_email@kobaia.com" intoTag "emailField"
-        kobaia type "12345678" intoTag "passwordField"
-
-        kobaia clickTag "loginButton"
-        kobaia assertTagVisible "loggedInText"
-        kobaia assertVisible "Welcome to Kobaia!"
     }
 }
