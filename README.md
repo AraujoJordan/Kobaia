@@ -1,18 +1,20 @@
 # Kobaia
-An android UI test library made in Kotlin
 
-[![Jitpack Enable](https://jitpack.io/v/AraujoJordan/Kobaia.svg)](https://jitpack.io/p/AraujoJordan/Kobaia/)
-[![CircleCI](https://circleci.com/gh/AraujoJordan/Kobaia.svg?style=shield)](https://circleci.com/gh/AraujoJordan/Kobaia)
-[![GitHub license](https://img.shields.io/badge/License-MIT-brightgreen)](https://github.com/AraujoJordan/Kobaia/LICENSE)
+**Android UI testing in Kotlin, without the boilerplate.**
 
-Kobaia is an Android library that provides an easy way to test UI with Kotlin. Built on top of UIAutomator2, it provides a simple and discoverable API, removing most of the boilerplate and verbosity of common UIAutomator tasks.
+[![JitPack](https://jitpack.io/v/AraujoJordan/Kobaia.svg)](https://jitpack.io/p/AraujoJordan/Kobaia/)
+[![Build](https://github.com/AraujoJordan/Kobaia/actions/workflows/build.yml/badge.svg)](https://github.com/AraujoJordan/Kobaia/actions/workflows/build.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen)](LICENSE)
+
+Kobaia is a UI test library built on UIAutomator. It gives you a small, discoverable API that
+reads like a description of what the user does, and it waits for the screen so you do not have to.
+Because it works through the accessibility tree rather than the view hierarchy, the same test
+drives Views and Jetpack Compose, and can follow the user out of your app and back.
 
 ```kotlin
 @Test
-fun testApp() = launch<SplashActivity> {
+fun logsIn() = launch<SplashActivity> {
     assertVisible("Kobaia")
-    assertVisible("SKIP")
-    assertVisible("NEXT")
     click("SKIP")
     click("GET STARTED")
     click("LOG IN")
@@ -24,43 +26,84 @@ fun testApp() = launch<SplashActivity> {
 ```
 
 No rule to declare, no `launchActivity()` to remember, and nothing to import but `launch` itself.
-If you would rather have a JUnit rule, Kobaia is one — and then every function reads as plain
-English, because they are all **infix functions** too:
 
-```kotlin
-@get:Rule
-val kobaia = Kobaia(SplashActivity::class.java)
+<p align="center">
+<img src="https://raw.githubusercontent.com/AraujoJordan/Kobaia/master/doc/kobaiaExample.gif" width="1280" alt="A Kobaia test driving the sample app"/>
+</p>
 
-@Test
-fun testApp() {
-    kobaia.launchActivity()
-    kobaia assertVisible "Kobaia"
-    kobaia click "SKIP"
-    kobaia click "LOG IN"
-    kobaia type "12345678" into "Enter your password"
-    kobaia click "ENTER"
-    kobaia assertVisible "Welcome to Kobaia!"
+**Contents** — [Why Kobaia](#-why-kobaia) · [Install](#-install) · [Usage](#-usage) ·
+[API reference](#-api-reference) · [How it behaves](#-how-it-behaves) ·
+[Migrating](#-migrating-from-an-older-version) · [Sample app](#-sample-app)
+
+## 🚀 Why Kobaia
+
+- **Tests read like user behaviour.** High-level functions — `click`, `assertVisible`, `type … into`
+  — keep a test about what the user does, not about how the view tree is built.
+- **It waits for the UI so you do not.** Every finder polls the screen until the element shows up
+  or the timeout runs out, so animations, slow requests and background work rarely need a sleep.
+- **It can leave your app.** Press home, open the notification shade, read another app's screen,
+  come back. The same functions work everywhere, because none of them are tied to your process.
+- **Views and Compose, the same way.** A `TextView` and a `Text` look identical from the
+  accessibility tree, and Compose `testTag`s are first-class targets.
+
+## 📦 Install
+
+**Requirements:** `minSdk` 23 · `compileSdk` 37 · JDK 17
+
+<details open>
+<summary><b>Step 1</b> — add the JitPack repository</summary>
+
+```gradle
+// settings.gradle
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://jitpack.io' }
+    }
 }
 ```
 
-<p float="left" align="center">
-<img src="https://raw.githubusercontent.com/AraujoJordan/Kobaia/master/doc/kobaiaExample.gif" width="1280"/>
-</p>
+On an older project whose repositories live in the root `build.gradle`, add the same
+`maven { url 'https://jitpack.io' }` line to `allprojects { repositories { … } }` instead.
 
-## 🚀 Why you should use Kobaia?
+</details>
 
-1. Behaviour Driven Development testing
-   * Kobaia is an high-level test library that create tests readable as close to what the user are doing with the app. So you can focus yours UI tests in a generic user interaction approach.
-2. Automatic wait for your UI
-   * Kobaia wait your UI be visible in the screen. Animations, long processes and networks requests doesn't need wait/sleep threads workarounds.
-3. Interact with elements outside your app
-   * Close the app and open and read an push notification? Or maybe test share a text message to an messenger app? It's easy with Kobaia.
-4. Views and Jetpack Compose, the same way
-   * Kobaia reads the accessibility tree, not the view hierarchy, so the same test functions drive a `TextView` and a `Text`. Compose `testTag`s are first-class targets.
+<details open>
+<summary><b>Step 2</b> — add the dependency</summary>
+
+Kobaia is a test-only dependency, so `androidTestImplementation` keeps it out of your release APK.
+Replace `x.x.x` with the version in the JitPack badge above.
+
+```gradle
+// build.gradle (module: app)
+dependencies {
+    androidTestImplementation 'com.github.AraujoJordan:Kobaia:x.x.x'
+}
+```
+
+</details>
+
+<details open>
+<summary><b>Step 3</b> — point the instrumentation runner at AndroidX</summary>
+
+```gradle
+android {
+    defaultConfig {
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+}
+```
+
+</details>
+
+Kobaia brings its stack with it — UIAutomator, Espresso, the AndroidX test core/runner/rules and
+JUnit are exposed as `api` dependencies, so you can mix an Espresso assertion or an
+`ActivityScenario` into a Kobaia test without declaring anything else.
 
 ## 📖 Usage
 
-### 1. Launch the activity
+### Starting a test
 
 `launch` is the whole setup. It clears the app's shared preferences, databases and files, starts
 the activity, runs your test, retries it if it fails, and closes the activity afterwards.
@@ -77,8 +120,8 @@ class LoginTest {
 }
 ```
 
-Inside the block every interaction is available with no import at all, and `scenario` is there
-for whatever they do not cover:
+Inside the block every interaction is available with no import, and `scenario` is there for
+whatever they do not cover:
 
 ```kotlin
 @Test
@@ -88,21 +131,18 @@ fun logsIn() = launch<SplashActivity> {
 }
 ```
 
-You can name the activity instead of passing it as a type argument, which is handy when the test
-reads better that way:
+Naming the activity instead of passing it as a type argument reads better in some tests:
 
 ```kotlin
 @Test
 fun logsIn() = SplashActivity::class.launch { … }
 ```
 
-And it takes the same optional arguments the rule does:
-
 | Argument | Default | What it does |
 | --- | --- | --- |
-| `startIntent` | `null` | The intent used to start the activity, instead of a plain launch. |
+| `startIntent` | `null` | Intent used to start the activity, instead of a plain launch. |
 | `flakyAttempts` | `5` | How many times a failing test is retried before it is reported as failed. |
-| `waitLimit` | `60000` | Espresso's master and idling-resource timeout, in milliseconds. Only matters if you mix Espresso interactions into the test. |
+| `waitLimit` | `60000` | Espresso's master and idling-resource timeout, in milliseconds. Only relevant if you mix Espresso interactions into the test. |
 
 ```kotlin
 @Test
@@ -114,14 +154,14 @@ fun opensTheDeepLink() = launch<SplashActivity>(
 }
 ```
 
-One thing to know: the app's state is cleared *inside* `launch`, which runs after `@Before`. Seed
-whatever your test needs from inside the block, not from a `@Before` method, or it will be wiped
-before the first assertion.
+> **Note**
+> `launch` clears the app's state *inside* the test method, which runs after `@Before`. Seed
+> whatever your test needs from inside the block, or it will be wiped before the first assertion.
 
-### 2. …or declare the rule
+### Starting a test with the rule
 
-`Kobaia` is also a JUnit `TestRule`, which is what you want when the test has to compose with
-other rules, or to do part of its work before the activity exists.
+`Kobaia` is also a JUnit `TestRule`, which is what you want when a test has to compose with other
+rules, or to do part of its work before the activity exists.
 
 ```kotlin
 @RunWith(AndroidJUnit4ClassRunner::class)
@@ -138,24 +178,12 @@ class LoginTest {
 }
 ```
 
-The rule wires up an `ActivityTestRule` for the activity under test, retries flaky tests, and
-clears the app's shared preferences, databases and files between tests. Its constructor takes two
-optional arguments:
+The rule wires up an `ActivityTestRule`, retries flaky tests, and clears the app's state between
+tests. Its constructor takes `flakyAttempts` (default `5`) and `launchActivityAutomatically`
+(default `false`); there is a reified factory, `Kobaia.create<SplashActivity>()`, if you prefer it.
 
-| Argument | Default | What it does |
-| --- | --- | --- |
-| `flakyAttempts` | `5` | How many times a failing test is retried before it is reported as failed. |
-| `launchActivityAutomatically` | `false` | Launch the activity before the test body runs, instead of waiting for `launchActivity()`. |
-
-There is also a reified factory if you prefer it:
-
-```kotlin
-@get:Rule
-val kobaia = Kobaia.create<SplashActivity>()
-```
-
-With the default `launchActivityAutomatically = false`, start the activity from inside the
-test. This lets you set up state (mock server, intent extras, …) first:
+With `launchActivityAutomatically = false`, you start the activity from inside the test, which
+leaves room to set up a mock server or intent extras first:
 
 ```kotlin
 kobaia.launchActivity(
@@ -166,30 +194,22 @@ kobaia.launchActivity(
 
 The underlying rule is exposed as `kobaia.activityTestRule` if you need the activity instance.
 
-### 3. Call the interactions
+### Calling the interactions
 
-Inside a `launch` block they are simply there. Everywhere else they live on `Kobaia`'s companion
-object, so import the ones you need:
+Inside a `launch` block the interactions are simply in scope. Everywhere else they live on
+`Kobaia`'s companion object, so import the ones you need:
 
 ```kotlin
 import com.araujo.jordan.kobaia.Kobaia.Companion.assertVisible
 import com.araujo.jordan.kobaia.Kobaia.Companion.click
-import com.araujo.jordan.kobaia.Kobaia.Companion.findDescription
 ```
 
-Every function takes a trailing `wait` parameter — how long, in milliseconds, Kobaia keeps
-polling the screen before giving up. It defaults to **5000 ms**, which is why you rarely need a
-`Thread.sleep` in a Kobaia test.
-
-### 4. …or call them as infix functions
-
-Every function is also an **infix function** under the same name, on the rule or on the `launch`
-block. Both flavours do exactly the same thing — pick the one you find more readable, and mix them
-freely in the same test.
+Every one of them is also an **infix function** under the same name. Both forms are the same
+function — pick whichever reads better, and mix them freely:
 
 ```kotlin
-click("SKIP")                                   // imported, or inside a launch block
-kobaia click "SKIP"                             // infix, same function
+click("SKIP")                                       // imported, or inside a launch block
+kobaia click "SKIP"                                 // infix, through the rule
 
 assertVisible("Welcome to Kobaia!")
 kobaia assertVisible "Welcome to Kobaia!"
@@ -198,25 +218,16 @@ type("12345678", into = "Enter your password")
 kobaia type "12345678" into "Enter your password"
 ```
 
-The infix flavour needs a name on its left, which is what the rule gives you. Inside a `launch`
-block there is none — the receiver is implicit, and `click "SKIP"` on its own is a parse error, so
-use the plain calls there:
+Every function takes a trailing `wait` — how long, in milliseconds, Kobaia keeps polling before
+giving up. It defaults to `5000`, which is why a Kobaia test rarely needs a `Thread.sleep`.
 
-```kotlin
-@Test
-fun testApp() = launch<SplashActivity> {
-    click("SKIP")
-    type("12345678") into "Enter your password" // `into`'s left operand is the call itself
-}
-```
-
-Two more things to keep in mind: infix functions always use the default `wait` (call the plain
-function when you need another one), and the ones that return a view need parentheses before you
-can chain on the result:
+Three things worth knowing about the infix form: it always uses the default `wait`, it needs a
+name on its left (so `click "SKIP"` alone is a parse error — inside a `launch` block, use the plain
+call), and results need parentheses before you can chain on them:
 
 ```kotlin
 (kobaia find "Terms of use")?.longClick()
-click("YOU CAN CLICK ME!", wait = 15000)
+click("YOU CAN CLICK ME!", wait = 15_000)
 ```
 
 ### Finding views
@@ -224,9 +235,9 @@ click("YOU CAN CLICK ME!", wait = 15000)
 Returns a UIAutomator `UiObject2?`, or `null` if nothing showed up within `wait`.
 
 ```kotlin
-find("ENTER")                           // first view whose text is exactly "ENTER"
-find(Pattern.compile("Hello, .*!"))     // …or matches a regex
-findDescription("Enter your email")     // by contentDescription — images, EditTexts, icons
+find("ENTER")                            // first view whose text is exactly "ENTER"
+find(Pattern.compile("Hello, .*!"))      // …or matches a regex
+findDescription("Enter your email")      // by contentDescription — images, EditTexts, icons
 findDescription(Pattern.compile("avatar_\\d+"))
 ```
 
@@ -235,7 +246,6 @@ Because you get the raw `UiObject2` back, anything UIAutomator can do is one ste
 ```kotlin
 find("Terms of use")?.longClick()
 val price = findDescription("total")?.text
-(kobaia find "Terms of use")?.longClick()    // same thing, infix
 ```
 
 ### Checking what is on screen
@@ -243,37 +253,34 @@ val price = findDescription("total")?.text
 The checks return a `Boolean`; `assertVisible` fails the test with a readable message.
 
 ```kotlin
-assertVisible("Welcome to Kobaia!")     // fails: "Welcome to Kobaia! should be visible"
+assertVisible("Welcome to Kobaia!")      // fails with "Welcome to Kobaia! should be visible"
 assertVisible(Pattern.compile("Welcome, .*"))
 
-if (isVisible("Rate this app", wait = 1000)) click("Later")
-isVisible(Pattern.compile("\\d+ items"))
-containsText("Welcome")                 // substring match, "Welcome to Kobaia!" counts
+isVisible("Rate this app", wait = 1000)
+containsText("Welcome")                  // substring match, so "Welcome to Kobaia!" counts
 isDescriptionVisible("profile_picture")
-isDescriptionVisible(Pattern.compile("avatar_\\d+"))
 ```
 
-Use a short `wait` for elements you expect *not* to be there — otherwise the negative check pays
-the full 5 s timeout.
+> **Note**
+> A view that is not there costs the full `wait` before Kobaia gives up, so checking for absence
+> with the 5 s default is the most common reason a suite crawls. Pass `QUICK_WAITING_TIME` (50 ms)
+> when you expect a miss.
 
 ### Interacting
 
 Clicks are forgiving on purpose: if the element never appears, nothing is clicked and the test
-keeps going. Assert first when the click must happen.
+carries on. Assert first when the click has to happen.
 
 ```kotlin
-click("SKIP")                            // clicks every view with that exact text
+click("SKIP")                             // clicks every view with that exact text
 click(Pattern.compile("(?i)skip"))
-click("YOU CAN CLICK ME!", wait = 15000) // give a slow screen more time
-clickContaining("Log")                   // clicks views containing "Log", e.g. "LOG IN"
-clickDescription("fluffy")               // click by contentDescription
-clickDescription(Pattern.compile("item_\\d+"))
+click("YOU CAN CLICK ME!", wait = 15_000) // give a slow screen more time
+clickContaining("Log")                    // clicks views containing "Log", e.g. "LOG IN"
+clickDescription("fluffy")                // click by contentDescription
 ```
 
-They click first and report after: each one returns whether it clicked anything, which is enough
-to handle a label that may or may not be there without a second lookup. Pass `QUICK_WAITING_TIME`
-when you expect a miss — a view that is not there costs the full `wait` before Kobaia gives up, so
-probing with the 5 s default is the most common reason a suite crawls:
+Each one returns whether it clicked anything, which is enough to handle a label that may or may
+not be there without a second lookup:
 
 ```kotlin
 if (!click("Not now", wait = QUICK_WAITING_TIME)) click("Dismiss", wait = QUICK_WAITING_TIME)
@@ -286,24 +293,20 @@ type("right_email@kobaia.com", into = "Enter your email")
 kobaia type "right_email@kobaia.com" into "Enter your email"
 ```
 
-To exercise `TextWatcher`s, formatting masks and other typing-driven logic, type through the
-actual soft keyboard one character at a time:
+To exercise `TextWatcher`s, formatting masks and other typing-driven logic, type through the real
+soft keyboard, one character at a time:
 
 ```kotlin
 typeOnKeyboard("133.37", into = "editField")
-kobaia typeOnKeyboard "133.37" into "editField"
 ```
 
 ### Scrolling
 
 Each of these swipes the first scrollable container (`LazyColumn`, `RecyclerView`, `ListView`,
-`ScrollView`, …) forward until the target is visible, then returns it as a `UiObject2?`. They
-check before every swipe, so a target already on screen costs none, and they stop early when the
-container says it has reached the end. They give up after `maximumScrolls` swipes (10 by default)
-and return `null`.
-
-They search **forward from wherever the list currently sits** — they do not rewind to the top
-first. Scroll back explicitly if your test has already scrolled past the target.
+`ScrollView`, …) forward until the target is visible, then returns it as a `UiObject2?`. They look
+before every swipe, so a target already on screen costs none, and they stop as soon as the
+container reports it has reached the end. After `maximumScrolls` swipes (10 by default) they give
+up and return `null`.
 
 ```kotlin
 scrollTo("SCROLL TO CLICK ME!")
@@ -319,11 +322,15 @@ scrollTo("Delete account")
 click("Delete account")
 ```
 
+> **Note**
+> Scrolling searches forward from wherever the list currently sits; it does not rewind to the top
+> first. Scroll back explicitly if your test has already gone past the target.
+
 ### Jetpack Compose
 
-Kobaia drives Compose the same way it drives Views, because it reads the accessibility tree rather
-than the view hierarchy. A `Text` is found by its text and an `Image` by its `contentDescription`,
-with no setup and no Compose dependency in your test:
+Compose needs no special treatment for text and content descriptions — a `Text` is found by its
+text and an `Image` by its `contentDescription`, with no setup and no Compose dependency in your
+test:
 
 ```kotlin
 assertVisible("Welcome to Kobaia!")
@@ -331,9 +338,8 @@ click("LOG IN")
 clickDescription("profile_picture")
 ```
 
-For `Modifier.testTag`, the app under test has to publish its tags to the accessibility tree.
-It is one `semantics` block on a root composable, and it is the only Compose-specific thing you
-have to do:
+`Modifier.testTag` is the one thing the app under test has to opt into. Publishing tags to the
+accessibility tree is a single `semantics` block on a root composable:
 
 ```kotlin
 setContent {
@@ -347,153 +353,135 @@ setContent {
 }
 ```
 
-With that in place, every tag becomes a first-class target:
+With that in place, every tag becomes a target:
 
 ```kotlin
 clickTag("loginButton")
 assertTagVisible("welcomeBanner")
 findTag("total")?.text
 typeIntoTag("12345678", tag = "passwordField")
-scrollToTag("item40")                        // scrolls a LazyColumn, like it scrolls a RecyclerView
+scrollToTag("item40")                     // scrolls a LazyColumn like it scrolls a RecyclerView
 
-kobaia clickTag "loginButton"                // and the infix flavour, as always
+kobaia clickTag "loginButton"             // the infix flavour, as always
 kobaia type "12345678" intoTag "passwordField"
 ```
 
-Each of these takes a `Pattern` too, and the same functions work on a View's resource id — pass
-the fully qualified name (`"com.example.app:id/login_button"`) instead of a bare tag.
+The same functions match a View's resource id — pass the fully qualified name,
+`"com.example.app:id/login_button"`, instead of a bare tag.
 
-The sample app is the proof. Its login flow — splash, tutorial, landing, login — is written in
-Compose, and the test that drives it
-([`KobaiaSampleTest`](sample/src/androidTest/java/com/araujo/jordan/kobaiasample/KobaiaSampleTest.kt))
-is the one at the top of this README: it did not change by a single line when those screens were
-rewritten from XML layouts to composables.
-[`ComposeSampleTest`](sample/src/androidTest/java/com/araujo/jordan/kobaiasample/ComposeSampleTest.kt)
-covers the testTag family against
-[`ComposeSampleActivity`](sample/src/main/java/com/araujo/jordan/kobaiasample/ComposeSampleActivity.kt),
-and `KobaiaTestActivity` stays on Views so both toolkits keep being exercised.
+### Leaving your app
 
-### Going outside your app
-
-`device()` hands you the UIAutomator `UiDevice`, so leaving your app is just another step in
-the test — hardware keys, the launcher, the notification shade, other apps:
+`device()` hands you the UIAutomator `UiDevice`, so stepping outside the app is just another line
+of the test — hardware keys, the launcher, the notification shade, other apps:
 
 ```kotlin
 device().pressBack()
 device().pressHome()
 device().openNotification()
-assertVisible("Your order has shipped")  // reading another app's UI works the same way
-click("Kobaia")                          // relaunch from the launcher
+assertVisible("Your order has shipped")   // reading another app's UI works the same way
+click("Kobaia")                           // relaunch from the launcher
 ```
 
 ### Waiting on purpose
 
-Kobaia waits for you, but when you genuinely need to hold (an animation you cannot observe, a
-scheduled job), `waitFor` sleeps without blocking Espresso's idling machinery:
+Kobaia waits for you, but when you genuinely need to hold — an animation you cannot observe, a
+scheduled job — `waitFor` holds the test for exactly as long as you ask, without blocking the app:
 
 ```kotlin
 waitFor(2000)
 kobaia waitFor 2000
 ```
 
-### Handling failures gracefully
+### Optional screens
 
-`assertVisible` throws `AssertionError`, so an optional screen — a rating prompt, a cookie
-banner — can be handled with a plain `try/catch`:
+`assertVisible` throws `AssertionError`, so a screen that may or may not appear — a rating prompt,
+a cookie banner — can be handled with a `try/catch`:
 
 ```kotlin
 try {
     assertVisible("Rate this app", wait = 2000)
     click("Not now")
-} catch (err: AssertionError) {
-    // the dialog didn't show up, carry on
+} catch (error: AssertionError) {
+    // the dialog did not show up, carry on
 }
 ```
 
-…or without the `try/catch` at all — at the cost of the full 5 s wait when the dialog is absent:
+Usually the forgiving click is enough, and cheaper:
 
 ```kotlin
-if (kobaia isVisible "Rate this app") kobaia click "Not now"
+click("Not now", wait = QUICK_WAITING_TIME)
 ```
 
-### Putting it together
+## 🧭 API reference
 
-```kotlin
-@RunWith(AndroidJUnit4ClassRunner::class)
-class KobaiaSampleTest {
-
-    @Test
-    fun testApp() = launch<SplashActivity> {
-        assertVisible("Kobaia")
-        assertVisible("SKIP")
-        assertVisible("NEXT")
-        click("SKIP")
-        click("GET STARTED")
-        click("LOG IN")
-        type("right_email@kobaia.com") into "Enter your email"
-        type("12345678") into "Enter your password"
-        click("ENTER")
-        assertVisible("Welcome to Kobaia!")
-    }
-}
-```
-
-The same test with the rule, and with every interaction as an infix function:
-
-```kotlin
-@RunWith(AndroidJUnit4ClassRunner::class)
-class KobaiaSampleTest {
-
-    @get:Rule
-    val kobaia = Kobaia(SplashActivity::class.java)
-
-    @Test
-    fun testApp() {
-        kobaia.launchActivity()
-        kobaia assertVisible "Kobaia"
-        kobaia assertVisible "SKIP"
-        kobaia assertVisible "NEXT"
-        kobaia click "SKIP"
-        kobaia click "GET STARTED"
-        kobaia click "LOG IN"
-        kobaia type "right_email@kobaia.com" into "Enter your email"
-        kobaia type "12345678" into "Enter your password"
-        kobaia click "ENTER"
-        kobaia assertVisible "Welcome to Kobaia!"
-    }
-}
-```
-
-Runnable versions of both, plus a test that leaves the app and comes back, live in the
-[`sample`](sample/src/androidTest/java/com/araujo/jordan/kobaiasample) module. The screens that
-test drives are Jetpack Compose; nothing in the test says so.
-
-### API cheat sheet
-
-Each name works both as a plain call and as an infix one.
+Every name below works both as a plain call and as an infix one.
 
 | | Functions |
 | --- | --- |
+| **Start** | `launch<T> { … }`, `T::class.launch { … }`, `Kobaia(T::class.java)` |
 | **Find** | `find`, `findDescription`, `findTag` |
 | **Check** | `isVisible`, `containsText`, `isDescriptionVisible`, `isTagVisible`, `assertVisible`, `assertTagVisible` |
 | **Click** | `click`, `clickContaining`, `clickDescription`, `clickTag` |
 | **Type** | `type … into`, `type … intoTag`, `typeOnKeyboard … into`, `typeOnKeyboard … intoTag` |
 | **Scroll** | `scrollTo`, `scrollToDescription`, `scrollToTag` |
 | **Device** | `device`, `waitFor` |
-| **Tuning** | `DEFAULT_WAITING_TIME`, `QUICK_WAITING_TIME`, `DEFAULT_MAXIMUM_SCROLLS`, `tuneUiAutomatorTimeouts` |
-| **Start** | `launch<T> { … }`, `T::class.launch { … }`, `Kobaia(T::class.java)` |
 
-Every `String` overload above has a `java.util.regex.Pattern` twin, except the substring ones
-(`containsText`, `clickContaining`) and the typing ones. `device()` is the only interaction
-without an infix form — it takes no argument.
+Every `String` overload has a `java.util.regex.Pattern` twin, except the substring ones
+(`containsText`, `clickContaining`) and the typing ones. `device()` is the only interaction with no
+infix form — it takes no argument.
 
-### Coming from an older version?
+Constants and knobs, all on `Kobaia`:
 
-The functions were renamed for consistency in the latest version. The old names still work — they
-are deprecated and delegate to the new ones, and the IDE's *Replace with* quick fix migrates them
-for you.
+| | Default | |
+| --- | --- | --- |
+| `DEFAULT_WAITING_TIME` | `5000` | How long the finders poll before giving up, in milliseconds. |
+| `QUICK_WAITING_TIME` | `50` | The wait to pass when you expect a miss. |
+| `DEFAULT_MAXIMUM_SCROLLS` | `10` | How many swipes the scrolling functions get. |
+| `DEFAULT_FLAKY_ATTEMPTS` | `5` | How many times a failing test is retried. |
+| `DEFAULT_IDLING_LIMIT` | `60000` | Espresso's idling timeout, in milliseconds. |
+| `tuneUiAutomatorTimeouts` | `true` | Whether Kobaia lowers UIAutomator's global timeouts. |
 
-| Old name | New name |
+## ⚙️ How it behaves
+
+**Tests are isolated.** Shared preferences, databases and files are cleared between tests, so a
+test that logs in cannot leak a session into the next one. A test that fails every attempt is the
+exception: it keeps its state so you can inspect it.
+
+**Flaky tests are retried, and the retries are not silent.** Up to 5 attempts by default; tune it
+with `flakyAttempts`, or set it to `1` in CI if you would rather see the flakiness. Every failed
+attempt is logged with its stack trace, so a test that only passes on the third try still leaves a
+trail in logcat:
+
+```
+W Kobaia: logsIn(com.example.LoginTest) failed on attempt 1 of 5, retrying
+```
+
+Between attempts Kobaia finishes the activities the failed one left behind and waits for them to
+actually go away, so the retry starts on a fresh screen. Tests skipped by `assumeTrue` are not
+retried — the assumption will not become true on the second try.
+
+**It does not wait longer than it has to.** UIAutomator gives itself ten seconds to resolve a
+selector and a second of acknowledgement per swipe, underneath everything Kobaia does. Kobaia
+lowers both once, before the first test, because it already waits for what it looks for. Set
+`Kobaia.tuneUiAutomatorTimeouts = false` to keep the platform defaults.
+
+**Turning animations off is worth it.** Add this to the app under test and the suite stops paying
+for animations it cannot see:
+
+```gradle
+android {
+    testOptions {
+        animationsDisabled = true
+    }
+}
+```
+
+## 🔄 Migrating from an older version
+
+The interactions were renamed for consistency. The old names still compile — they are deprecated
+and delegate to the new ones, and the IDE's *Replace with* quick fix migrates them for you.
+
+| Old | New |
 | --- | --- |
 | `byText` | `find` |
 | `byDescription` | `findDescription` |
@@ -509,143 +497,39 @@ for you.
 | `waitTest` | `waitFor` |
 | `uiDevice` | `device` |
 
-`waitLimit`, on both `launchActivity` and `launch`, is now in **milliseconds** like every other
-wait in the library. It used to be handed to a seconds-based API while defaulting to a
-milliseconds constant, so the effective timeout was 83 minutes; it is now Espresso's own default
-of 60 seconds. If you passed it explicitly, multiply by 1000.
+Three changes are not source-compatible and need an edit rather than a quick fix:
 
-`waitFor` no longer waits for the main thread to go idle before sleeping — it holds for exactly
-as long as you ask. Waiting for idle never returns on a screen that animates continuously, which
-is most Compose screens with a spinner or a focused text field.
+- **Constructor arguments** were renamed from `DEFAULT_FLAKY_ATTEMPTS` and
+  `LAUNCH_ACTIVITY_AUTOMATICALLY` to `flakyAttempts` and `launchActivityAutomatically`. Parameter
+  names cannot be deprecated, so passing them by name breaks.
+- **`waitLimit` is milliseconds now**, on both `launchActivity` and `launch`, like every other wait
+  in the library. It used to be handed to a seconds-based API while defaulting to a milliseconds
+  constant, which made the effective timeout 83 minutes; it is now Espresso's own default of 60
+  seconds. If you passed it explicitly, multiply by 1000.
+- **The clicks return `Boolean`** instead of `Unit?`. Source-compatible if you ignore the result,
+  but it changes the signature, so a recompile is needed rather than a jar swap.
 
-The two constructor arguments were renamed as well, from `DEFAULT_FLAKY_ATTEMPTS` and
-`LAUNCH_ACTIVITY_AUTOMATICALLY` to `flakyAttempts` and `launchActivityAutomatically`. Parameter
-names cannot be deprecated, so this one is a breaking change if you passed them by name.
+`waitFor` also no longer waits for the main thread to go idle before sleeping — it holds for
+exactly as long as you ask. Waiting for idle never returns on a screen that animates continuously,
+which is most Compose screens with a spinner or a focused text field.
 
-Nothing about the rule changed otherwise: `@get:Rule val kobaia = Kobaia(…)` plus
-`kobaia.launchActivity()` keeps working exactly as before. `launch { }` is an addition, not a
-replacement.
+Nothing else about the rule changed: `@get:Rule val kobaia = Kobaia(…)` plus
+`kobaia.launchActivity()` works exactly as before. `launch { }` is an addition, not a replacement.
 
-## 📦 Installation
+## 📱 Sample app
 
-**Requirements:** `minSdk` 23, JDK 17, Android Gradle Plugin 8.x.
+The [`sample`](sample) module is a runnable app and its test suite:
 
-#### Step 1. Add the JitPack repository to your project
+| | |
+| --- | --- |
+| [`KobaiaSampleTest`](sample/src/androidTest/java/com/araujo/jordan/kobaiasample/KobaiaSampleTest.kt) | The login flow, driven end to end by `launch`. Those screens are **Jetpack Compose**, and the test did not change by a line when they were rewritten from XML layouts — nothing in it says which toolkit it is driving. |
+| [`KobaiaInstrumentedTest`](sample/src/androidTest/java/com/araujo/jordan/kobaiasample/KobaiaInstrumentedTest.kt) | The **rule** and the infix flavour, against a View screen of deliberately awkward widgets: a button that only becomes clickable after a countdown, a `TextWatcher`, a list to scroll. It also leaves the app and comes back. |
+| [`ComposeSampleTest`](sample/src/androidTest/java/com/araujo/jordan/kobaiasample/ComposeSampleTest.kt) | The `testTag` family against a Compose screen with a `TextField` and a `LazyColumn`. |
 
-+ settings.gradle (Gradle 7+)
-```gradle
-dependencyResolutionManagement {
-    repositories {
-        google()
-        mavenCentral()
-        maven { url 'https://jitpack.io' }
-    }
-}
+```bash
+./gradlew :sample:connectedDebugAndroidTest
 ```
-
-<details>
-<summary>Using an older project with repositories in <code>build.gradle</code>?</summary>
-
-+ build.gradle (Project: YourProjectName)
-```gradle
-allprojects {
-	repositories {
-	     ...
-		maven { url 'https://jitpack.io' }
-	}
-}
-```
-</details>
-
-#### Step 2. Add the dependency to your app build file
-
-Kobaia is a test-only dependency, so add it to `androidTestImplementation` — it will not be
-packaged into your release APK.
-
-+ build.gradle (Module: app) [![Jitpack Enable](https://jitpack.io/v/AraujoJordan/Kobaia.svg)](https://jitpack.io/p/AraujoJordan/Kobaia/)
-```gradle
-dependencies {
-    ...
-	androidTestImplementation 'com.github.AraujoJordan:Kobaia:x.x.x'
-}
-```
-
-Replace `x.x.x` with the version shown in the JitPack badge above.
-
-#### Step 3. Point your instrumentation runner at AndroidX
-
-```gradle
-android {
-    defaultConfig {
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-    }
-}
-```
-
-And that's it!
-
-## 🌟 Extras
-
-**Kobaia brings its test stack with you.** It exposes UIAutomator, Espresso, the AndroidX test
-core/runner/rules and JUnit as `api` dependencies, so you can mix Espresso assertions or an
-`ActivityScenario` into a Kobaia test without declaring anything else.
-
-**Tests are isolated by default.** Shared preferences, databases and files are cleared between
-tests, so a test that logs in cannot leak a session into the next one. A test that fails every
-attempt is the exception: it leaves its state behind so you can inspect it.
-
-**Animations are worth turning off.** Add this to the app you are testing — the suite stops
-paying for animations it cannot see, and stops waiting for them to finish:
-
-```gradle
-android {
-    testOptions {
-        animationsDisabled = true
-    }
-}
-```
-
-**It does not wait longer than it has to.** UIAutomator gives itself ten seconds to resolve a
-selector and a second of acknowledgement per swipe, underneath everything Kobaia does; Kobaia
-lowers both once, before your first test, because it already waits for what it looks for. Set
-`Kobaia.tuneUiAutomatorTimeouts = false` to keep the platform defaults.
-
-**Flaky tests are retried, and the retries are not silent.** Up to 5 attempts by default; tune it
-with `flakyAttempts`, on `launch` or on the rule's constructor, or set it to `1` in CI if you would
-rather see the flakiness. Every failed attempt is logged under the `Kobaia` tag with its stack
-trace, so a test that only passes on the third try still leaves a trail in logcat:
-
-```
-W Kobaia: testApp(…KobaiaSampleTest) failed on attempt 1 of 5, retrying
-```
-
-Between attempts, Kobaia finishes the activities the failed one left behind and waits for them to
-actually go away, so the retry starts on a fresh screen rather than on top of the wreckage. Tests
-skipped by `assumeTrue` and friends are not retried — the assumption will not become true on the
-second try.
 
 ## 📄 License
 
-```
-MIT License
-
-Copyright (c) 2020 Jordan L. A. Junior
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
+Released under the [MIT License](LICENSE). Copyright © 2020 Jordan L. A. Junior.
