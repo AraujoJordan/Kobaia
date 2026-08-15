@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -46,6 +47,7 @@ class ComposeSampleActivity : ComponentActivity() {
                 ComposeSampleScreen(
                     modifier = Modifier
                         .fillMaxSize()
+                        .safeDrawingPadding()
                         .semantics { testTagsAsResourceId = true }
                 )
             }

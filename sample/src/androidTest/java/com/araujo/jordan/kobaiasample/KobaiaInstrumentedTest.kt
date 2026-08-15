@@ -63,8 +63,6 @@ class KobaiaInstrumentedTest {
         click("YOU CAN CLICK ME!", 15000)
         typeOnKeyboard("133.37", into = "editField")
         device().pressBack()
-        device().pressHome()
-        click("Kobaia")
         scrollTo("SCROLL TO CLICK ME!")
         assertVisible("SCROLL TO CLICK ME!")
     }
@@ -81,8 +79,6 @@ class KobaiaInstrumentedTest {
         click("YOU CAN CLICK ME!", 15000)
         kobaia typeOnKeyboard "133.37" into "editField"
         device().pressBack()
-        device().pressHome()
-        kobaia click "Kobaia"
         kobaia scrollTo "SCROLL TO CLICK ME!"
         kobaia assertVisible "SCROLL TO CLICK ME!"
     }

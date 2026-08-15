@@ -104,7 +104,7 @@ mavenPublishing {
     coordinates(
         project.findProperty("GROUP") ?: "io.github.araujojordan",
         project.findProperty("POM_ARTIFACT_ID") ?: "kobaia",
-        project.findProperty("VERSION_NAME") ?: "0.4.2"
+        project.findProperty("VERSION_NAME") ?: "0.4.3"
     )
 
     pom {

@@ -95,12 +95,14 @@ fun <T : Activity> launch(
     IdlingPolicies.setIdlingResourceTimeout(waitLimit, TimeUnit.MILLISECONDS)
 
     retryOnFailure(activityClass.simpleName, flakyAttempts) {
+        AppUnderTest.finishAllActivities()
         AppUnderTest.clearData()
         scenarioOf(activityClass, startIntent).use { KobaiaScope(it).test() }
     }
 
     // Only once the test has passed, and outside the retrying: a state that fails to clear is not
     // a flaky test, and a test that failed every attempt keeps its state so it can be inspected.
+    AppUnderTest.finishAllActivities()
     AppUnderTest.clearData()
 }
 

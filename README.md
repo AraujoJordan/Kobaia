@@ -517,7 +517,7 @@ The [`sample`](sample) module is a runnable app and its test suite.
 | | |
 | --- | --- |
 | [`KobaiaSampleTest`](sample/src/androidTest/java/com/araujo/jordan/kobaiasample/KobaiaSampleTest.kt) | The login flow, driven end to end by `launch`. Those screens are **Jetpack Compose**, and the test did not change by a line when they were rewritten from XML layouts — nothing in it says which toolkit it drives. |
-| [`KobaiaInstrumentedTest`](sample/src/androidTest/java/com/araujo/jordan/kobaiasample/KobaiaInstrumentedTest.kt) | The rule and the infix flavour, against a **View** screen of deliberately awkward widgets: a button that only becomes clickable after a countdown, a `TextWatcher`, a list to scroll. It also leaves the app and comes back. |
+| [`KobaiaInstrumentedTest`](sample/src/androidTest/java/com/araujo/jordan/kobaiasample/KobaiaInstrumentedTest.kt) | The rule and the infix flavour, against a **View** screen of deliberately awkward widgets: a button that only becomes clickable after a countdown, a `TextWatcher`, a list to scroll. |
 | [`ComposeSampleTest`](sample/src/androidTest/java/com/araujo/jordan/kobaiasample/ComposeSampleTest.kt) | The `testTag` family against a Compose screen with a `TextField` and a `LazyColumn`. |
 
 ```bash
