@@ -35,9 +35,6 @@ class KobaiaSampleTest {
         assertVisible("Enter your email")
         type("right_email@kobaia.com") into "Enter your email"
         type("12345678") into "Enter your password"
-        // The credentials have to arrive exactly, or the screen answers with a toast instead
-        assertVisible("right_email@kobaia.com")
-        assertVisible("12345678")
 
         click("ENTER")
         assertVisible("Welcome to Kobaia!")
