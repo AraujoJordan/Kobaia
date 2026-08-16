@@ -100,6 +100,26 @@ waitUntilDescriptionGone("progress_spinner")
 waitUntilTagGone("loadingSpinner")
 ```
 
+### When an assertion fails
+
+A failing assertion tells you what was on screen instead — including the near miss, which is the
+single most common way a finder misses:
+
+```
+"SIGN IN" should be visible, but was not found after 5000ms.
+
+On screen now:
+  text: "Sign in", "Forgot password?", "Kobaia"
+  tags: loginTitle, emailField, passwordField, loginButton
+
+Did you mean "Sign in"? (differs by case)
+```
+
+The screen is only read once something has already failed, so a passing suite pays nothing for it.
+Every failed attempt is also photographed **and** dumped: a `.png` of the screen and a `.xml` of the
+accessibility tree land in the app's external media directory, reported back to the instrumentation
+so they show up alongside the test.
+
 ---
 
 ## 👆 Clicking & Tapping

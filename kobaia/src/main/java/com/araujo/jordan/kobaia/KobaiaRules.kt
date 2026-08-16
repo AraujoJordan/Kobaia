@@ -31,12 +31,31 @@ internal object AppUnderTest {
         get() = InstrumentationRegistry.getInstrumentation().targetContext
 
     /**
-     * Wipe every piece of state the app under test can leak into the next test
+     * Wipe every piece of state the app under test can leak into the next test.
+     *
+     * Each part is best-effort and reports its own failure, like [resetRotation]: this runs inside
+     * the retried block, so an app whose database cannot be opened — encrypted, corrupt, or held
+     * open exclusively — would otherwise fail every attempt of every test with a housekeeping
+     * error, and the real assertion would never get to run. Housekeeping must not become the
+     * failure a test reports.
      */
     fun clearData() {
-        clearPreferences()
-        clearDatabases()
-        clearFiles()
+        bestEffort("clear the shared preferences", ::clearPreferences)
+        bestEffort("clear the databases", ::clearDatabases)
+        bestEffort("clear the files", ::clearFiles)
+    }
+
+    /**
+     * Run a piece of housekeeping, and never let it become the failure the test reports
+     * @param what the step being attempted, for the log
+     * @param step the housekeeping itself
+     */
+    private inline fun bestEffort(what: String, step: () -> Unit) {
+        try {
+            step()
+        } catch (couldNotDoIt: Throwable) {
+            Log.w(KOBAIA_TAG, "Could not $what of the app under test", couldNotDoIt)
+        }
     }
 
     fun resetRotation() {
@@ -67,12 +86,22 @@ internal object AppUnderTest {
         }
 
         val giveUpAt = SystemClock.uptimeMillis() + TEARDOWN_TIMEOUT
+        var lastSeen = emptyList<String>()
         while (SystemClock.uptimeMillis() < giveUpAt) {
-            var stillRunning = true
-            instrumentation.runOnMainSync { stillRunning = runningActivities().isNotEmpty() }
-            if (!stillRunning) return
-            Thread.sleep(TEARDOWN_POLLING_INTERVAL)
+            instrumentation.runOnMainSync {
+                lastSeen = runningActivities().map { it.javaClass.simpleName }
+            }
+            if (lastSeen.isEmpty()) return
+            KobaiaSleep.sleep(TEARDOWN_POLLING_INTERVAL)
         }
+
+        // Falling out of the loop silently is how the next test ends up starting on top of the
+        // screen this one left behind, with nothing anywhere saying why.
+        Log.w(
+            KOBAIA_TAG,
+            "Gave up after ${TEARDOWN_TIMEOUT}ms waiting for these activities of the app under " +
+                "test to finish: ${lastSeen.joinToString()}. The next test may start on top of them."
+        )
     }
 
     /**
@@ -181,6 +210,43 @@ internal class ClearDataRule : TestRule {
 }
 
 /**
+ * The test that is running right now, named the way JUnit names it.
+ *
+ * The [Kobaia] rule is handed a [Description] and knows the answer; [launch] is not, and used to
+ * label its retries with the activity class instead — so two tests launching the same activity
+ * logged the same name and overwrote each other's failure screenshots. The stack is where the
+ * answer actually is: exactly one frame below here belongs to a method JUnit will have annotated.
+ *
+ * @param fallback what to call the test when no annotated frame can be found
+ * @return the test as `method(com.example.TheTest)`, matching [Description.getDisplayName]
+ */
+internal fun currentTestName(fallback: String): String =
+    try {
+        Thread.currentThread().stackTrace
+            .firstNotNullOfOrNull { frame -> frame.asTestMethod() }
+            ?: fallback
+    } catch (couldNotTell: Throwable) {
+        Log.w(KOBAIA_TAG, "Could not work out which test is running", couldNotTell)
+        fallback
+    }
+
+/**
+ * This frame as `method(Class)` when it is a JUnit test method, and null when it is anything else.
+ *
+ * The annotation is the whole test: Kobaia's own frames and JUnit's runner frames carry no
+ * `@Test`, so there is no package to exclude and no depth to guess.
+ */
+private fun StackTraceElement.asTestMethod(): String? =
+    try {
+        val type = Class.forName(className)
+        type.declaredMethods
+            .firstOrNull { it.name == methodName && it.isAnnotationPresent(org.junit.Test::class.java) }
+            ?.let { "${it.name}($className)" }
+    } catch (notOurs: Throwable) {
+        null
+    }
+
+/**
  * Run something until it passes, to keep an occasional flaky failure from breaking the build.
  * It is only reported as failed once every attempt has been used up, and the failure that is
  * reported is the one from the last attempt.
@@ -199,6 +265,16 @@ internal fun retryOnFailure(label: String, attempts: Int, attempt: () -> Unit) {
     repeat(maximumAttempts) { previousAttempts ->
         try {
             attempt()
+            // A test that only passes on the third go is a flaky test, and a green suite is
+            // exactly where that goes unnoticed. The failures were logged as they happened; this
+            // is the line that says the run ended up green anyway, so the two can be counted.
+            if (previousAttempts > 0) {
+                Log.w(
+                    KOBAIA_TAG,
+                    "$label passed on attempt ${previousAttempts + 1} of $maximumAttempts, " +
+                        "after $previousAttempts failed — this test is flaky"
+                )
+            }
             return
         } catch (skipped: AssumptionViolatedException) {
             throw skipped
@@ -236,11 +312,19 @@ internal object FailureScreenshot {
     fun capture(label: String, attemptNumber: Int) {
         try {
             val reporter = ResultsReporter(label)
+            val name = "${label.asFileName()}-attempt-$attemptNumber"
             val screenshot = reporter.addNewFile(
-                filename = "${label.asFileName()}-attempt-$attemptNumber.png",
+                filename = "$name.png",
                 title = "$label, failed attempt $attemptNumber"
             )
-            if (Kobaia.device().takeScreenshot(screenshot)) reporter.reportToInstrumentation()
+            var captured = Kobaia.device().takeScreenshot(screenshot)
+
+            // The picture says what it looked like; the dump says what it *was* — the texts and
+            // testTags the finders were matching against, which is what an assertion missed by.
+            // A picture of a screen whose button is off by one space does not show the space.
+            captured = captureHierarchy(reporter, name, label, attemptNumber) || captured
+
+            if (captured) reporter.reportToInstrumentation()
         } catch (couldNotCapture: Throwable) {
             // Deliberately Throwable, and deliberately swallowed. Reporting needs a mounted
             // external storage, and fails with an Error rather than an Exception when there is
@@ -248,6 +332,32 @@ internal object FailureScreenshot {
             Log.w(KOBAIA_TAG, "Could not capture the screen of the failed $label", couldNotCapture)
         }
     }
+
+    /**
+     * The accessibility tree as the failing attempt left it, next to the picture of it.
+     *
+     * Kept separate from the screenshot so that one failing does not cost the other: a device that
+     * refuses a screenshot can still hand over its hierarchy, and the reverse.
+     *
+     * @return whether the dump was written
+     */
+    private fun captureHierarchy(
+        reporter: ResultsReporter,
+        name: String,
+        label: String,
+        attemptNumber: Int
+    ): Boolean =
+        try {
+            val hierarchy = reporter.addNewFile(
+                filename = "$name.xml",
+                title = "$label, view hierarchy of failed attempt $attemptNumber"
+            )
+            Kobaia.device().dumpWindowHierarchy(hierarchy)
+            true
+        } catch (couldNotDump: Throwable) {
+            Log.w(KOBAIA_TAG, "Could not dump the hierarchy of the failed $label", couldNotDump)
+            false
+        }
 
     /**
      * A test name as something a file system will accept: `logsIn(com.example.LoginTest)` has
@@ -279,8 +389,10 @@ internal object FailureScreenshot {
  */
 internal object UiAutomatorTimeouts {
 
+    @Volatile
     private var tuned = false
 
+    @Synchronized
     fun tuneOnce(idleTimeout: Long = 500L) {
         if (tuned || !Kobaia.tuneUiAutomatorTimeouts) return
         tuned = true

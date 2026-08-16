@@ -2,6 +2,7 @@ package com.araujo.jordan.kobaiasample
 
 import androidx.test.internal.runner.junit4.AndroidJUnit4ClassRunner
 import com.araujo.jordan.kobaia.Kobaia
+import com.araujo.jordan.kobaia.Kobaia.Companion.assertNotVisible
 import com.araujo.jordan.kobaia.Kobaia.Companion.assertVisible
 import com.araujo.jordan.kobaia.Kobaia.Companion.click
 import com.araujo.jordan.kobaia.Kobaia.Companion.clickDescription
@@ -10,6 +11,7 @@ import com.araujo.jordan.kobaia.Kobaia.Companion.scrollTo
 import com.araujo.jordan.kobaia.Kobaia.Companion.typeOnKeyboard
 import com.araujo.jordan.kobaia.Kobaia.Companion.waitUntilGone
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -109,6 +111,59 @@ class KobaiaInstrumentedTest {
         kobaia assertChecked "Accept terms"
         assertTrue(kobaia uncheck "Accept terms")
         kobaia assertUnchecked "Accept terms"
+    }
+
+    /**
+     * A failed assertion says what was on screen instead.
+     *
+     * "This text doesn't exist! should be visible" names only what was wanted, which is the half
+     * you already knew. The half worth having is whether the button is missing, misspelled, or
+     * spelled right one screen back — so the message carries the texts and tags that *were* there.
+     */
+    @Test
+    fun failureMessageDescribesTheScreen() {
+        kobaia.launchActivity()
+        val failure = assertThrows(AssertionError::class.java) {
+            assertVisible("This text doesn't exist!", 1000)
+        }
+        val message = failure.message.orEmpty()
+        assertTrue("the message should say how long it looked: $message", message.contains("1000ms"))
+        assertTrue("the message should list the screen: $message", message.contains("On screen now"))
+        assertTrue("the screen listing should hold a real text: $message", message.contains("CLICK ME!"))
+        assertTrue(
+            "the screen listing should hold a real tag: $message",
+            message.contains("clickMeButton")
+        )
+    }
+
+    /**
+     * The near miss is the point of the whole report: a text that is on screen with different
+     * casing is the single most common way a finder misses, and the message says so by name.
+     */
+    @Test
+    fun failureMessagePointsAtTheNearMiss() {
+        kobaia.launchActivity()
+        val failure = assertThrows(AssertionError::class.java) {
+            assertVisible("click me!", 1000)
+        }
+        val message = failure.message.orEmpty()
+        assertTrue("the message should suggest the real text: $message", message.contains("CLICK ME!"))
+        assertTrue("the message should say why it nearly matched: $message", message.contains("case"))
+    }
+
+    /**
+     * The mirror image: a view that is there when it should not be reports how long it was looked
+     * for, since for this family a longer wait is what makes the assertion stricter.
+     */
+    @Test
+    fun absenceFailureSaysHowLongItLooked() {
+        kobaia.launchActivity()
+        val failure = assertThrows(AssertionError::class.java) {
+            kobaia assertNotVisible "CLICK ME!"
+        }
+        val message = failure.message.orEmpty()
+        assertTrue("the message should name the text: $message", message.contains("CLICK ME!"))
+        assertTrue("the message should say how long it looked: $message", message.contains("ms"))
     }
 
     /**

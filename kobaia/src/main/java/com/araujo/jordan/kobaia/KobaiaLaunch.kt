@@ -94,7 +94,9 @@ fun <T : Activity> launch(
     IdlingPolicies.setMasterPolicyTimeout(waitLimit, TimeUnit.MILLISECONDS)
     IdlingPolicies.setIdlingResourceTimeout(waitLimit, TimeUnit.MILLISECONDS)
 
-    retryOnFailure(activityClass.simpleName, flakyAttempts) {
+    // Named after the test rather than the activity, so that two tests on the same activity do not
+    // log under one name and overwrite each other's failure screenshots.
+    retryOnFailure(currentTestName(fallback = activityClass.simpleName), flakyAttempts) {
         AppUnderTest.finishAllActivities()
         AppUnderTest.clearData()
         AppUnderTest.resetRotation()

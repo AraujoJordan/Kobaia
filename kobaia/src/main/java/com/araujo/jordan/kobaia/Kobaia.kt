@@ -376,7 +376,7 @@ class Kobaia<T : Activity>(
         fun assertVisible(
             text: String,
             wait: Long = DEFAULT_WAITING_TIME
-        ) = assertTrue("$text should be visible", isVisible(text, wait))
+        ) = assertShowing(By.text(text), wait) { notFound("\"$text\"", wait, text) }
 
         /**
          * Assert that a text pattern is visible on screen, failing the test with a readable
@@ -388,7 +388,7 @@ class Kobaia<T : Activity>(
         fun assertVisible(
             pattern: Pattern,
             wait: Long = DEFAULT_WAITING_TIME
-        ) = assertTrue("$pattern should be visible", isVisible(pattern, wait))
+        ) = assertShowing(By.text(pattern), wait) { notFound("A text matching $pattern", wait, null) }
 
         /**
          * Assert that a Compose testTag (or View resource id) is visible on screen, failing the
@@ -400,7 +400,7 @@ class Kobaia<T : Activity>(
         fun assertTagVisible(
             tag: String,
             wait: Long = DEFAULT_WAITING_TIME
-        ) = assertTrue("A view tagged $tag should be visible", isTagVisible(tag, wait))
+        ) = assertShowing(By.res(tag), wait) { notFound("A view tagged $tag", wait, tag) }
 
         /**
          * Assert that a Compose testTag (or View resource id) matching the pattern is visible on
@@ -412,7 +412,7 @@ class Kobaia<T : Activity>(
         fun assertTagVisible(
             pattern: Pattern,
             wait: Long = DEFAULT_WAITING_TIME
-        ) = assertTrue("A view tagged $pattern should be visible", isTagVisible(pattern, wait))
+        ) = assertShowing(By.res(pattern), wait) { notFound("A view tagged $pattern", wait, null) }
 
         /**
          * Assert that a content description is visible on screen, failing the test with a
@@ -423,7 +423,7 @@ class Kobaia<T : Activity>(
         fun assertDescriptionVisible(
             text: String,
             wait: Long = DEFAULT_WAITING_TIME
-        ) = assertTrue("A view described as $text should be visible", isDescriptionVisible(text, wait))
+        ) = assertShowing(By.desc(text), wait) { notFound("A view described as $text", wait, text) }
 
         /**
          * Assert that a text is **not** on screen.
@@ -440,7 +440,7 @@ class Kobaia<T : Activity>(
         fun assertNotVisible(
             text: String,
             wait: Long = QUICK_WAITING_TIME
-        ) = assertFalse("$text should not be visible", isVisible(text, wait))
+        ) = assertNotShowing(By.text(text), wait) { stillThere("\"$text\"", wait) }
 
         /**
          * Assert that a text pattern is **not** on screen. @see assertNotVisible
@@ -450,7 +450,7 @@ class Kobaia<T : Activity>(
         fun assertNotVisible(
             pattern: Pattern,
             wait: Long = QUICK_WAITING_TIME
-        ) = assertFalse("$pattern should not be visible", isVisible(pattern, wait))
+        ) = assertNotShowing(By.text(pattern), wait) { stillThere("A text matching $pattern", wait) }
 
         /**
          * Assert that a content description is **not** on screen. @see assertNotVisible
@@ -460,10 +460,7 @@ class Kobaia<T : Activity>(
         fun assertDescriptionNotVisible(
             text: String,
             wait: Long = QUICK_WAITING_TIME
-        ) = assertFalse(
-            "A view described as $text should not be visible",
-            isDescriptionVisible(text, wait)
-        )
+        ) = assertNotShowing(By.desc(text), wait) { stillThere("A view described as $text", wait) }
 
         /**
          * Assert that a Compose testTag (or View resource id) is **not** on screen.
@@ -474,7 +471,7 @@ class Kobaia<T : Activity>(
         fun assertTagNotVisible(
             tag: String,
             wait: Long = QUICK_WAITING_TIME
-        ) = assertFalse("A view tagged $tag should not be visible", isTagVisible(tag, wait))
+        ) = assertNotShowing(By.res(tag), wait) { stillThere("A view tagged $tag", wait) }
 
         /**
          * Wait for a text that is on screen now to go away — a spinner, a toast, a splash screen.
@@ -740,7 +737,55 @@ class Kobaia<T : Activity>(
          * @param description how to name the view in the failure message
          */
         private fun requireVisible(selector: BySelector, wait: Long, description: String): UiObject2 =
-            findFirst(selector, wait) ?: throw AssertionError("$description should be visible")
+            findFirst(selector, wait) ?: throw AssertionError(notFound(description, wait, description))
+
+        /**
+         * Why a view that had to be there is not, with the screen that was there instead.
+         *
+         * Built only when something has already failed, never on the way to a passing assertion —
+         * reading the screen is not free, and [ScreenReport] is the reason a failure message is
+         * worth more than the timeout it cost.
+         * @param description how to name the view that is missing
+         * @param wait how long it was looked for, in milliseconds
+         * @param target the plain text that was searched for, or null when it was a pattern and
+         * there is no near miss worth suggesting
+         */
+        private fun notFound(description: String, wait: Long, target: String?): String =
+            "$description should be visible, but was not found after ${wait}ms." +
+                ScreenReport.explain(target)
+
+        /**
+         * Assert that the selector matches something, describing the screen when it does not.
+         *
+         * The message is a `by` argument rather than a value so that a passing assertion never
+         * builds it — which is the whole reason the screen can be described at all.
+         * @param selector what the view has to match
+         * @param wait how long to wait for it before giving up, in milliseconds
+         * @param message what to fail with, evaluated only on a failure
+         */
+        private inline fun assertShowing(selector: BySelector, wait: Long, message: () -> String) {
+            if (!isShowing(selector, wait)) throw AssertionError(message())
+        }
+
+        /**
+         * Assert that the selector matches nothing. @see assertNotVisible
+         * @param selector what no view may match
+         * @param wait how long to keep looking before concluding it is absent, in milliseconds
+         * @param message what to fail with, evaluated only on a failure
+         */
+        private inline fun assertNotShowing(selector: BySelector, wait: Long, message: () -> String) {
+            if (isShowing(selector, wait)) throw AssertionError(message())
+        }
+
+        /**
+         * Why a view that had to be gone is still there.
+         *
+         * No screen report here: the thing the assertion complained about is on screen, so listing
+         * what else is would be noise. What is worth saying is how long it was looked for, since
+         * for this family a longer wait is what makes the assertion stricter.
+         */
+        private fun stillThere(description: String, wait: Long): String =
+            "$description should not be visible, but it was still on screen during ${wait}ms."
 
         // ---------------------------------------------------------------------------------------
         // Clicking
@@ -1010,8 +1055,31 @@ class Kobaia<T : Activity>(
             // that masks a password, say — ends up with the text once rather than twice.
             fieldOnScreen.clear()
             typeCharacterByCharacter(fieldOnScreen, text)
+
+            // The promise this function exists to keep applies to the fallback too. It cannot be
+            // an assertion — interactions never throw on a miss — but a field that refused both
+            // ways of writing to it is worth a line, because the test will fail somewhere else
+            // entirely and this is the only place that knows why.
+            if (fieldOnScreen.wait(Until.textEquals(text), QUICK_WAITING_TIME) != true) {
+                Log.w(
+                    KOBAIA_TAG,
+                    "Typed \"$text\" but the field still reads \"${fieldOnScreen.safeText()}\" — " +
+                        "it refused both setText and the keyboard"
+                )
+            }
             return fieldOnScreen
         }
+
+        /**
+         * The text of a view, for a log line that must not throw: a view read after it has left
+         * the screen raises [StaleObjectException], and a diagnostic is never worth a failure.
+         */
+        private fun UiObject2.safeText(): String =
+            try {
+                text.orEmpty()
+            } catch (gone: Throwable) {
+                "<gone>"
+            }
 
         /**
          * Type a text on the field with the given content description one key press at a time.

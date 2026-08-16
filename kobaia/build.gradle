@@ -104,7 +104,9 @@ mavenPublishing {
     coordinates(
         project.findProperty("GROUP") ?: "io.github.araujojordan",
         project.findProperty("POM_ARTIFACT_ID") ?: "kobaia",
-        project.findProperty("VERSION_NAME") ?: "0.4.4"
+        // No fallback: gradle.properties is the one place the version lives, and a hardcoded
+        // default here would silently publish a stale version the day it drifts.
+        project.property("VERSION_NAME")
     )
 
     pom {
