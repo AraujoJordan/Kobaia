@@ -38,7 +38,7 @@ fun testApp() = launch<SplashActivity> {
 ## 📦 Download
 
 ```gradle
-androidTestImplementation 'io.github.araujojordan:kobaia:x.x.x'
+androidTestImplementation 'io.github.araujojordan:kobaia:0.6.0'
 ```
 
 ---
@@ -53,7 +53,52 @@ find(Pattern.compile("Hello, .*!"))        // by regex Pattern
 findDescription("Enter your email")        // by contentDescription
 findDescription(Pattern.compile("avatar_\\d+"))
 findTag("loginButton")                     // by Compose testTag or View resource ID
+
+findAll("OPEN")                            // every match, not just the first
+findAllTags("row")
 ```
+
+> **`findTag` and View resource IDs.** A Compose `Modifier.testTag("loginButton")` surfaces under
+> exactly that name, so `findTag("loginButton")` finds it. A **View** resource ID surfaces
+> fully qualified, so an XML `android:id="@+id/loginButton"` needs
+> `findTag("com.example.app:id/loginButton")`.
+
+When the three families are not enough, hand Kobaia a UIAutomator selector of your own — `By.clazz`,
+`By.checkable`, `By.hasChild` and any combination of them, without dropping out of the DSL:
+
+```kotlin
+find(By.clazz(SeekBar::class.java))
+click(By.text("OPEN").hasAncestor(By.res("row5")))
+isVisible(By.checkable(true))
+assertVisible(By.pkg("com.android.settings"))
+findAll(By.clazz(TextView::class.java))
+```
+
+---
+
+## 🎯 Scoping to a Container
+
+A row in a list repeats its labels — every row has its own `OPEN`, and `click("OPEN")` clicks all of
+them. Naming the row first is what makes one of them addressable:
+
+```kotlin
+withinTag("row3") {
+    assertVisible("Item #3")
+    click("OPEN")
+}
+
+within("Shipping address") { click("Edit") }
+withinDescription("cart_summary") { assertVisible("R$ 42,00") }
+within(By.clazz(RecyclerView::class.java)) { assertCount("OPEN", 10) }
+```
+
+Every finder, assertion, click and count inside the block narrows at once. Blocks nest, and the
+inner container has to be inside the outer one. Scrolling and swiping narrow too, so a horizontal
+carousel above a vertical list can be turned by naming it — outside a block they act on whichever
+scrollable comes first in the tree.
+
+The container itself is **not** in scope, only what is under it: a scope is a place to look inside,
+so `withinTag("row3") { assertTagVisible("row3") }` finds nothing.
 
 ---
 
@@ -92,6 +137,23 @@ isEnabled("ENTER")
 isChecked("Remember me")
 isTagEnabled("loginButton")
 isTagChecked("acceptCheckbox")
+
+// What a label says, rather than whether it is there
+textOfTag("totalLabel")                    // "R$ 42,00", or null if nothing carries the tag
+textOfDescription("cart_total")
+textOf(By.clazz(TextView::class.java))
+
+assertTagTextEquals("totalLabel", "R$ 42,00")
+assertTagTextContains("greeting", "Kobaia")
+
+// How many there are
+countOf("OPEN")
+countOfDescription("delete_icon")
+countOfTag("row")
+countOf(By.checkable(true))
+
+assertCount("OPEN", 10)
+assertTagCount("errorBanner", 0)
 
 // Await disappearance
 waitUntilGone("Loading…")
@@ -166,7 +228,7 @@ clearTextInTag("emailField")
 
 ## 📜 Scrolling
 
-Scrolls scrollable containers (`LazyColumn`, `RecyclerView`, `ScrollView`, `ListView`) forward until the target view appears, the list runs out, or `maximumScrolls` swipes have been made:
+Scrolls scrollable containers (`LazyColumn`, `RecyclerView`, `ScrollView`, `ListView`) until the target view appears, the list runs out, or `maximumScrolls` swipes have been made. It searches on from wherever the list currently sits rather than rewinding to the top, and checks between swipes so a target already on screen costs none:
 
 ```kotlin
 scrollTo("SCROLL TO CLICK ME!")
@@ -174,6 +236,10 @@ scrollTo(Pattern.compile("Item #\\d+"))
 scrollToDescription("footer_logo")
 scrollToTag("item40")
 scrollToDescription(Pattern.compile("row_\\d+"), maximumScrolls = 20)
+
+// back the other way, for something the list has already gone past
+scrollTo("CLICK ME!", Direction.UP)
+scrollToTag("item1", Direction.UP)
 ```
 
 ---
@@ -276,7 +342,26 @@ kobaia assertNotVisible "Wrong credentials!"
 kobaia assertTagChecked "acceptCheckbox"
 kobaia clearText "Enter your email"
 kobaia waitFor 2000
+kobaia countOf "OPEN"
+kobaia textOfTag "totalLabel"
 ```
+
+---
+
+## 🧹 State Between Tests
+
+Both entry points wipe the app's shared preferences, databases and files so every test starts from
+a clean slate — before the test, and again once it passes. **A test that fails every attempt keeps
+its state**, so you can inspect what it left behind.
+
+The two differ in one way worth knowing:
+
+| | The `Kobaia` rule | `launch { }` |
+| :--- | :--- | :--- |
+| Clears state | around `@Before` | inside the test method |
+| So `@Before` seeding | **survives** | is **wiped** before the block runs |
+
+If you seed state in `@Before`, use the rule. With `launch`, seed inside the block instead.
 
 ---
 

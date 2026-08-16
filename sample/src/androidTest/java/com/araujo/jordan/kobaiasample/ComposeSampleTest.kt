@@ -3,11 +3,13 @@ package com.araujo.jordan.kobaiasample
 import android.view.KeyEvent
 import androidx.test.internal.runner.junit4.AndroidJUnit4ClassRunner
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.By
 import androidx.test.uiautomator.Direction
 import com.araujo.jordan.kobaia.Kobaia
 import com.araujo.jordan.kobaia.Kobaia.Companion.typeIntoTag
 import com.araujo.jordan.kobaia.launch
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -87,6 +89,75 @@ class ComposeSampleTest {
             }
         }
         assertTrue("swiping back down should reach the first item again", backAtTheTop)
+    }
+
+    /**
+     * Every row of the list carries the same `OPEN`, so `click("OPEN")` clicks all of them and
+     * there is no text, description or tag that means "the one in row 3". Naming the row first is
+     * what makes one of them addressable.
+     */
+    @Test
+    fun scopesAClickToOneRow() = launch<ComposeSampleActivity> {
+        assertNotNull("row 3 should be reachable", scrollToTag("row3"))
+        assertTrue("the list should repeat its OPEN label", countOf("OPEN") > 1)
+
+        withinTag("row3") { click("OPEN") }
+
+        assertTagTextEquals("item3", "Item #3 opened")
+        assertNotVisible("Item #2 opened")
+        assertNotVisible("Item #4 opened")
+    }
+
+    /**
+     * The scope is a place to look *inside*, so the container itself is not in it — otherwise
+     * `withinTag("row3")` would match `row3` and every row that happens to contain one.
+     */
+    @Test
+    fun theScopeExcludesTheContainerItself() = launch<ComposeSampleActivity> {
+        assertNotNull("row 2 should be reachable", scrollToTag("row2"))
+        assertTagVisible("row2")
+        withinTag("row2") {
+            assertTagVisible("item2")
+            assertTagNotVisible("row2")
+        }
+        // and the scope is put back afterwards
+        assertTagVisible("row2")
+    }
+
+    /**
+     * What a label says, rather than whether it is there — and how many of a thing there are.
+     */
+    @Test
+    fun readsAndCountsWhatIsOnScreen() = launch<ComposeSampleActivity> {
+        assertNotNull("row 2 should be reachable", scrollToTag("row2"))
+
+        assertEquals("Item #2", textOfTag("item2"))
+        assertTagTextEquals("item2", "Item #2")
+        assertTagTextContains("item2", "#2")
+
+        assertTagCount("open2", 1)
+        assertCount("Item #2", 1)
+        assertTagCount("thereIsNoSuchTag", 0)
+    }
+
+    /**
+     * The way out when the three selector families are not enough: the same "the OPEN in row 5",
+     * said as one selector instead of as a scope. And the scroll that goes back up, which the
+     * forward-only one could never reach.
+     */
+    @Test
+    fun findsWithASelectorOfItsOwnAndScrollsBackUp() = launch<ComposeSampleActivity> {
+        assertNotNull("row 5 should be reachable", scrollToTag("row5"))
+
+        val openInRowFive = By.text("OPEN").hasAncestor(By.res("row5"))
+        assertNotNull("the selector should find the OPEN of row 5", find(openInRowFive))
+        assertTrue("it should be clickable through the selector", click(openInRowFive))
+        assertVisible("Item #5 opened")
+
+        assertNotNull(
+            "scrolling up should reach the top of the list again",
+            scrollTo("CLICK ME!", Direction.UP)
+        )
     }
 
     /**

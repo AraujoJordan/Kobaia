@@ -168,19 +168,34 @@ private fun ComposeSampleScreen(modifier: Modifier = Modifier) {
         }
 
         items((1..40).toList()) { item ->
+            // Every row carries the same "OPEN" label on purpose: that is what makes the row
+            // itself the only way to say which one is meant, and what `withinTag` is for.
+            var opened by remember { mutableStateOf(false) }
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("row$item"),
                 shape = RoundedCornerShape(8.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Text(
-                    text = "Item #$item",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp)
-                        .testTag("item$item")
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (opened) "Item #$item opened" else "Item #$item",
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("item$item")
+                    )
+                    Button(
+                        onClick = { opened = true },
+                        modifier = Modifier.testTag("open$item")
+                    ) {
+                        Text("OPEN")
+                    }
+                }
             }
         }
     }

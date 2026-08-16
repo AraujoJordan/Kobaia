@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [ master ]
 
+# A second push to the same branch makes the first one's emulator run pointless, and an emulator
+# run is the most expensive thing in this file.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build
@@ -52,6 +58,29 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      # Booting a fresh AVD is most of this job's wall clock. Cached, the emulator restores from a
+      # snapshot instead, and the cold boot is paid once per api-level rather than once per push.
+      - name: Cache the AVD snapshot
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-34-google_apis-x86_64
+
+      - name: Create the AVD and snapshot it
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: false
+          script: echo "AVD snapshot generated."
+
       # Kobaia's tests are the sample's instrumented tests: every interaction needs a device, so
       # this is the only place the library is actually exercised, and the only source of coverage.
       - name: Run the sample's instrumented tests and report coverage
@@ -60,6 +89,8 @@ jobs:
           api-level: 34
           target: google_apis
           arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           # Kobaia photographs every failed attempt into the app's external media directory. Those
           # files are the difference between "the assertion failed" and knowing what was on screen

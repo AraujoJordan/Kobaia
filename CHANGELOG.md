@@ -4,6 +4,44 @@ All notable changes to Kobaia are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] — 2026-08-16
+
+Things the DSL could not express before, and a guard so the public API stops being able to change
+by accident. Everything here is additive: no name was removed or renamed.
+
+### Added
+
+- **Scoping — `withinTag`, `within`, `withinDescription`.** A row in a list repeats its labels, so
+  `click("OPEN")` clicks every row's. Naming the container first makes one of them addressable:
+
+  ```kotlin
+  withinTag("row3") { click("OPEN") }
+  ```
+
+  Every finder, assertion, click and count inside the block narrows at once, including scrolling
+  and swiping — so a horizontal carousel above a vertical list can finally be turned by naming it.
+  Blocks nest, and the scope is restored even when the block throws.
+- **Selectors of your own.** `find`, `click`, `isVisible`, `assertVisible`, `findAll`, `countOf`,
+  `textOf` and `within` all take a UIAutomator `BySelector`, so `By.clazz`, `By.checkable`,
+  `By.hasChild` and any combination are reachable without dropping out of the DSL.
+- **Counting** — `countOf`, `countOfDescription`, `countOfTag`, `assertCount`, `assertTagCount`,
+  and `findAll` / `findAllTags` for every match rather than the first.
+- **Reading text** — `textOfTag`, `textOfDescription`, `textOf`, plus `assertTagTextEquals` and
+  `assertTagTextContains`. What a label *says*, as opposed to whether it is there.
+- **Scrolling backwards.** The `scrollTo*` family takes a `direction`, so a target the list has
+  already gone past is reachable: `scrollTo("CLICK ME!", Direction.UP)`.
+- **Published API documentation.** The javadoc jar shipped empty because it excluded every `.kt`
+  file; Dokka now renders the KDoc into it.
+- **An API guard.** `./gradlew :kobaia:apiDump` records the public API into `kobaia/api/kobaia.api`,
+  and `apiCheck` — which `build` runs — fails when it drifts. Renaming a public name now has to be
+  a deliberate commit rather than an accident.
+
+### Changed
+
+- **`kotlinx-coroutines-android` is no longer a dependency.** It was declared `api` without a single
+  use in the library, which put it on every consumer's test classpath. If your tests used it
+  transitively, declare it yourself.
+
 ## [0.5.0] — 2026-08-16
 
 Failure messages that say what was on screen instead, and a set of fixes to the machinery around a
@@ -45,5 +83,6 @@ test. No public API was added, removed or renamed.
 
 See the [release history](https://github.com/AraujoJordan/Kobaia/releases) for earlier versions.
 
-[0.5.0]: https://github.com/AraujoJordan/Kobaia/releases/tag/0.5.0
-[0.4.4]: https://github.com/AraujoJordan/Kobaia/releases/tag/0.4.4
+[0.6.0]: https://github.com/AraujoJordan/Kobaia/releases/tag/v0.6.0
+[0.5.0]: https://github.com/AraujoJordan/Kobaia/releases/tag/v0.5.0
+[0.4.4]: https://github.com/AraujoJordan/Kobaia/releases/tag/v0.4.4

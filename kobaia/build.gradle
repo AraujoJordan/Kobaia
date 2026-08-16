@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.library'
     id 'jacoco'
+    id 'org.jetbrains.dokka'
     id 'com.vanniktech.maven.publish'
 }
 
@@ -42,6 +43,11 @@ kotlin {
     }
 }
 
+// Deliberately `api` rather than `implementation`: this is a test library, and the types it hands
+// back are the caller's to use. `find` returns a UiObject2, the rule is a JUnit TestRule, and a
+// test that mixes in Espresso assertions or its own ActivityScenario is the normal case, not a
+// leak. What is not here is as deliberate: kotlinx-coroutines was on this list without a single
+// use in the library, and an `api` dependency is one every consumer's test classpath inherits.
 dependencies {
     api 'androidx.test:runner:1.7.0'
     api 'androidx.test:core:1.7.0'
@@ -49,8 +55,9 @@ dependencies {
     api 'androidx.test.espresso:espresso-core:3.7.0'
     api 'androidx.test.uiautomator:uiautomator:2.4.0'
     api 'junit:junit:4.13.2'
-    api 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0'
 }
+
+apply from: 'api-guard.gradle'
 
 // Coverage of the library comes from the sample's instrumented tests: they are the only tests
 // that exercise it, since every interaction needs a device. So the execution data is written into
@@ -94,10 +101,23 @@ tasks.register('jacocoTestReport', JacocoReport) {
     )
 }
 
-// Exclude Kotlin files from Javadoc due to an error generating docs from Kotlin files.
-// More info: https://github.com/novoda/bintray-release/issues/71
-tasks.withType(Javadoc).configureEach {
-    excludes = ['**/*.kt']
+// The KDoc in this module is the reference documentation, and until now none of it was published:
+// the javadoc jar excluded every .kt file, so it shipped empty. Dokka reads the KDoc instead.
+//
+// The source set has to be declared by hand. Dokka discovers source roots from the Kotlin Gradle
+// plugin, and this build has none — AGP 9 compiles Kotlin itself — so left alone Dokka finds
+// nothing to document and cheerfully produces an empty directory.
+tasks.named('dokkaJavadoc') {
+    moduleName.set('Kobaia')
+    dokkaSourceSets {
+        register('main') {
+            sourceRoots.from(file('src/main/java'))
+            jdkVersion.set(17)
+            noAndroidSdkLink.set(false)
+            includeNonPublic.set(false)
+            skipEmptyPackages.set(true)
+        }
+    }
 }
 
 mavenPublishing {

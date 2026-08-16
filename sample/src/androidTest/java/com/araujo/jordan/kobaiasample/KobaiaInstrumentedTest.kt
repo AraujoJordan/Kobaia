@@ -10,6 +10,7 @@ import com.araujo.jordan.kobaia.Kobaia.Companion.device
 import com.araujo.jordan.kobaia.Kobaia.Companion.scrollTo
 import com.araujo.jordan.kobaia.Kobaia.Companion.typeOnKeyboard
 import com.araujo.jordan.kobaia.Kobaia.Companion.waitUntilGone
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -164,6 +165,17 @@ class KobaiaInstrumentedTest {
         val message = failure.message.orEmpty()
         assertTrue("the message should name the text: $message", message.contains("CLICK ME!"))
         assertTrue("the message should say how long it looked: $message", message.contains("ms"))
+    }
+
+    /**
+     * Reading a field back, on the View side. `typeOnKeyboard` drives a `TextWatcher`, and what
+     * the field ended up holding is a different question from whether it is on screen.
+     */
+    @Test
+    fun readsTheTextAFieldEndedUpWith() {
+        kobaia.launchActivity()
+        kobaia typeOnKeyboard "133.37" into "editField"
+        assertEquals("133.37", kobaia textOfDescription "editField")
     }
 
     /**

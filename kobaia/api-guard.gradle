@@ -1,0 +1,147 @@
+// Every public name in this module is something a test suite somewhere already imports, and until
+// now nothing checked that. `apiDump` records the public API into api/kobaia.api; `apiCheck` — which
+// `check` depends on, so `./gradlew build` runs it — fails when the recorded API and the compiled
+// one disagree. A rename then has to be a deliberate commit that updates the dump, which is exactly
+// the review moment the deprecation convention in AGENTS.md needs.
+//
+// This is hand-rolled rather than binary-compatibility-validator because that plugin registers its
+// tasks off the Kotlin Gradle plugin, and this build has no Kotlin plugin to register off: AGP 9
+// compiles Kotlin itself, and applying `org.jetbrains.kotlin.android` alongside it fails outright.
+// javap ships with the JDK the build already requires, so this needs nothing that is not here.
+
+def apiFile = layout.projectDirectory.file('api/kobaia.api')
+
+// Kotlin classes land in built_in_kotlinc under AGP 9 and in tmp/kotlin-classes under the separate
+// Kotlin plugin. Both are listed so the dump survives either, and a missing directory contributes
+// nothing — the same reasoning as the jacoco class dirs.
+def compiledClassDirs = [
+    'intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes',
+    'tmp/kotlin-classes/debug',
+    'intermediates/javac/debug/compileDebugJavaWithJavac/classes'
+]
+
+/**
+ * The public and protected API of the compiled classes, as sorted lines of javap output.
+ *
+ * Only what a consumer can actually reach: private and package-private members are left out by
+ * javap itself, and the generated R/BuildConfig classes are not API anyone writes against.
+ */
+// Kotlin `internal` compiles to JVM `public`, and javap cannot tell the two apart — so the types
+// that are internal to the library are named here. Getting this list wrong shows up as a noisy
+// apiCheck diff rather than as a silently unguarded API, which is the safe direction to fail.
+def internalTypes = [
+    'AppUnderTest',
+    'ClearDataRule',
+    'FailureScreenshot',
+    'FlakyTestRule',
+    'KobaiaRulesKt',
+    'KobaiaSleep',
+    'ScreenReport',
+    'UiAutomatorTimeouts'
+] as Set
+
+def readPublicApi = { ->
+    def classFiles = []
+    compiledClassDirs.each { dir ->
+        def root = layout.buildDirectory.dir(dir).get().asFile
+        if (!root.exists()) return
+        root.eachFileRecurse { file ->
+            if (!file.name.endsWith('.class')) return
+            def name = file.absolutePath - "${root.absolutePath}/" - '.class'
+            def simpleName = name.substring(name.lastIndexOf('/') + 1)
+
+            def nameParts = simpleName.tokenize('$')
+
+            // Generated types: not something anyone imports.
+            if (nameParts.first() in ['R', 'BuildConfig', 'Manifest']) return
+            // Lambdas, `when` tables and the interface's static bridge holder: all compiler
+            // bookkeeping, and all of it churns on edits that change no API at all.
+            if (nameParts.size() > 1 &&
+                (nameParts.last().isInteger() || nameParts.last() in ['WhenMappings', 'DefaultImpls'])) return
+            if (simpleName.contains('$$')) return
+            if (internalTypes.contains(nameParts.first())) return
+
+            classFiles << [root: root, binaryName: name.replace('/', '.')]
+        }
+    }
+
+    if (classFiles.isEmpty()) {
+        throw new GradleException(
+            'No compiled classes found to read the API from. Run :kobaia:compileDebugKotlin first.'
+        )
+    }
+
+    def javap = "${System.getProperty('java.home')}/bin/javap"
+    def lines = [] as Set
+    classFiles.groupBy { it.root }.each { root, entries ->
+        entries.collate(80).each { batch ->
+            // providers.exec rather than project.exec: the latter was removed in Gradle 9.
+            def javapOutput = providers.exec {
+                commandLine([javap, '-protected', '-classpath', root.absolutePath] +
+                    batch.collect { it.binaryName })
+            }.standardOutput.asText.get()
+
+            def currentType = null
+            javapOutput.readLines().each { rawLine ->
+                def line = rawLine.trim()
+                if (line.isEmpty() || line == '}' || line.startsWith('Compiled from')) return
+                if (line.endsWith('{')) {
+                    currentType = line - ~/\s*\{$/
+                    lines << currentType
+                } else if (currentType != null) {
+                    // Kotlin emits synthetic access helpers and default-argument bridges; neither
+                    // is a name anyone writes, and both churn on unrelated edits.
+                    if (line.contains('$default(') || line.contains('access$')) return
+                    // An interface method shows up twice, as the declaration and as the default
+                    // implementation. `default` is not part of the signature a caller sees.
+                    def signature = line.replaceFirst(/^public default /, 'public ')
+                    lines << "    ${currentType.replaceAll(/^.*\s(\S+)$/, '$1')} :: ${signature}"
+                }
+            }
+        }
+    }
+    return lines.toSorted().join('\n') + '\n'
+}
+
+tasks.register('apiDump') {
+    group = 'verification'
+    description = 'Record the public API of :kobaia into api/kobaia.api'
+    dependsOn 'compileDebugKotlin'
+    doLast {
+        def target = apiFile.asFile
+        target.parentFile.mkdirs()
+        target.text = readPublicApi()
+        logger.lifecycle("Public API written to ${target}")
+    }
+}
+
+tasks.register('apiCheck') {
+    group = 'verification'
+    description = 'Fail when the public API of :kobaia has drifted from api/kobaia.api'
+    dependsOn 'compileDebugKotlin'
+    doLast {
+        def target = apiFile.asFile
+        if (!target.exists()) {
+            throw new GradleException(
+                "No recorded API at ${target}. Run ./gradlew :kobaia:apiDump and commit the result."
+            )
+        }
+        def recorded = target.text.readLines()
+        def actual = readPublicApi().readLines()
+        if (recorded == actual) return
+
+        def added = actual - recorded
+        def removed = recorded - actual
+        def report = new StringBuilder("The public API of :kobaia has changed.\n")
+        removed.each { report.append("  - ${it}\n") }
+        added.each { report.append("  + ${it}\n") }
+        report.append(
+            "\nIf this is deliberate, run ./gradlew :kobaia:apiDump and commit api/kobaia.api.\n" +
+            "Removing or renaming a public name is a breaking change: keep the old one as a\n" +
+            "@Deprecated delegate carrying a ReplaceWith, as the rest of the API does."
+        )
+        throw new GradleException(report.toString())
+    }
+}
+
+tasks.named('check') { dependsOn 'apiCheck' }

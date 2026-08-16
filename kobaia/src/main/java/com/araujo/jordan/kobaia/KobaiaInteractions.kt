@@ -1,5 +1,6 @@
 package com.araujo.jordan.kobaia
 
+import androidx.test.uiautomator.BySelector
 import androidx.test.uiautomator.Direction
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
@@ -503,6 +504,131 @@ interface KobaiaInteractions {
 
     /** Wake the device up, as pressing the power button would */
     fun wakeUp() = Kobaia.wakeUp()
+
+    // -------------------------------------------------------------------------------------------
+    // Scrolling the other way
+    // -------------------------------------------------------------------------------------------
+
+    /**
+     * Scroll a given way until this text turns up: `scrollTo("CLICK ME!", Direction.UP)`.
+     *
+     * The infix `scrollTo` only ever searches forward, which cannot reach something the list has
+     * already gone past.
+     */
+    fun scrollTo(text: String, direction: Direction): UiObject2? =
+        Kobaia.scrollTo(text, direction = direction)
+
+    /** Scroll a given way until this content description turns up. @see scrollTo */
+    fun scrollToDescription(text: String, direction: Direction): UiObject2? =
+        Kobaia.scrollToDescription(text, direction = direction)
+
+    /** Scroll a given way until this Compose testTag turns up. @see scrollTo */
+    fun scrollToTag(tag: String, direction: Direction): UiObject2? =
+        Kobaia.scrollToTag(tag, direction = direction)
+
+    // -------------------------------------------------------------------------------------------
+    // Scoping
+    // -------------------------------------------------------------------------------------------
+
+    /**
+     * Narrow every search inside the block to the descendants of the view with this testTag:
+     *
+     * ```kotlin
+     * withinTag("item3") { click("OPEN") }
+     * ```
+     * @see Kobaia.withinTag
+     */
+    fun <R> withinTag(tag: String, block: KobaiaInteractions.() -> R): R =
+        Kobaia.withinTag(tag) { block() }
+
+    /**
+     * Narrow every search inside the block to the descendants of the view with this text
+     * @see Kobaia.withinTag
+     */
+    fun <R> within(text: String, block: KobaiaInteractions.() -> R): R =
+        Kobaia.within(text) { block() }
+
+    /**
+     * Narrow every search inside the block to the descendants of the view with this description
+     * @see Kobaia.withinTag
+     */
+    fun <R> withinDescription(text: String, block: KobaiaInteractions.() -> R): R =
+        Kobaia.withinDescription(text) { block() }
+
+    /**
+     * Narrow every search inside the block to the descendants of whatever the selector matches
+     * @see Kobaia.withinTag
+     */
+    fun <R> within(container: BySelector, block: KobaiaInteractions.() -> R): R =
+        Kobaia.within(container) { block() }
+
+    // -------------------------------------------------------------------------------------------
+    // Selectors you built yourself
+    // -------------------------------------------------------------------------------------------
+
+    /** The first view matching a selector of your own: `kobaia find By.clazz(SeekBar::class.java)` */
+    infix fun find(selector: BySelector): UiObject2? = Kobaia.find(selector)
+
+    /** Click every view matching a selector of your own */
+    infix fun click(selector: BySelector): Boolean = Kobaia.click(selector)
+
+    /** Whether anything matching a selector of your own is on screen */
+    infix fun isVisible(selector: BySelector): Boolean = Kobaia.isVisible(selector)
+
+    /** Assert that something matching a selector of your own is on screen */
+    infix fun assertVisible(selector: BySelector) = Kobaia.assertVisible(selector)
+
+    /** Every view matching a selector of your own */
+    infix fun findAll(selector: BySelector): List<UiObject2> = Kobaia.findAll(selector)
+
+    /** Every view with this exact text */
+    infix fun findAll(text: String): List<UiObject2> = Kobaia.findAll(text)
+
+    /** Every view with this Compose testTag (or View resource id) */
+    infix fun findAllTags(tag: String): List<UiObject2> = Kobaia.findAllTags(tag)
+
+    // -------------------------------------------------------------------------------------------
+    // Counting
+    // -------------------------------------------------------------------------------------------
+
+    /** How many views on screen have this text: `kobaia countOf "OPEN"` */
+    infix fun countOf(text: String): Int = Kobaia.countOf(text)
+
+    /** How many views on screen have this content description */
+    infix fun countOfDescription(text: String): Int = Kobaia.countOfDescription(text)
+
+    /** How many views on screen have this Compose testTag (or View resource id) */
+    infix fun countOfTag(tag: String): Int = Kobaia.countOfTag(tag)
+
+    /** How many views on screen match a selector of your own */
+    infix fun countOf(selector: BySelector): Int = Kobaia.countOf(selector)
+
+    /** Assert that exactly [expected] views on screen have this text */
+    fun assertCount(text: String, expected: Int) = Kobaia.assertCount(text, expected)
+
+    /** Assert that exactly [expected] views on screen have this Compose testTag */
+    fun assertTagCount(tag: String, expected: Int) = Kobaia.assertTagCount(tag, expected)
+
+    // -------------------------------------------------------------------------------------------
+    // Reading text
+    // -------------------------------------------------------------------------------------------
+
+    /** What the view with this Compose testTag says: `kobaia textOfTag "totalLabel"` */
+    infix fun textOfTag(tag: String): String? = Kobaia.textOfTag(tag)
+
+    /** What the view with this content description says */
+    infix fun textOfDescription(text: String): String? = Kobaia.textOfDescription(text)
+
+    /** What the first view matching a selector of your own says */
+    infix fun textOf(selector: BySelector): String? = Kobaia.textOf(selector)
+
+    /** Assert that the view with this Compose testTag says exactly this */
+    fun assertTagTextEquals(tag: String, expected: String) =
+        Kobaia.assertTagTextEquals(tag, expected)
+
+    /** Assert that the view with this Compose testTag says something containing this */
+    fun assertTagTextContains(tag: String, expected: String) =
+        Kobaia.assertTagTextContains(tag, expected)
 
     /**
      * A text on its way to a field: the first half of `type "…" into "…"`

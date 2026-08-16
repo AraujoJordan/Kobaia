@@ -267,12 +267,221 @@ class Kobaia<T : Activity>(
         ): UiObject2? = findFirst(By.res(pattern), wait)
 
         /**
+         * Get the first UiObject2 matching a UIAutomator selector you built yourself.
+         *
+         * The way out when the three families are not enough: `By.clazz`, `By.checkable`,
+         * `By.hasChild`, `By.pkg` and any combination of them are reachable from here without
+         * leaving the DSL behind for a bare [device] call.
+         *
+         * ```kotlin
+         * find(By.clazz(android.widget.SeekBar::class.java))
+         * click(By.text("OPEN").hasAncestor(By.res("item3")))
+         * ```
+         * @param selector what the view has to match
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         */
+        fun find(
+            selector: BySelector,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): UiObject2? = findFirst(selector, wait)
+
+        /**
+         * Every UiObject2 the selector matches, in the order UIAutomator walks the tree.
+         *
+         * The finders hand back the first match; this hands back all of them, which is what
+         * "the second row" and "how many are there" both need.
+         * @param selector what the views have to match
+         * @param wait how long you want to wait for the first of them (Default is 5000 milliseconds)
+         * @return the matches, or an empty list if none turned up
+         */
+        fun findAll(
+            selector: BySelector,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): List<UiObject2> = findEvery(selector, wait)
+
+        /**
+         * Every UiObject2 with the given text. @see findAll
+         * @param text the text the views have to have
+         * @param wait how long you want to wait for the first of them (Default is 5000 milliseconds)
+         */
+        fun findAll(
+            text: String,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): List<UiObject2> = findEvery(By.text(text), wait)
+
+        /**
+         * Every UiObject2 with the given Compose testTag (or View resource id). @see findAll
+         * @param tag the testTag the views have to have
+         * @param wait how long you want to wait for the first of them (Default is 5000 milliseconds)
+         */
+        fun findAllTags(
+            tag: String,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): List<UiObject2> = findEvery(By.res(tag), wait)
+
+        /**
+         * Every view the selector matches, waiting for the first of them to show up.
+         *
+         * A miss costs the whole wait, like every other finder: [Until.findObjects] comes back as
+         * soon as one view matches, so only "none at all" is charged in full.
+         * @param selector what the views have to match
+         * @param wait how long to wait for the first of them before giving up, in milliseconds
+         */
+        private fun findEvery(selector: BySelector, wait: Long): List<UiObject2> =
+            device().wait(Until.findObjects(scoped(selector)), wait).orEmpty()
+
+        // ---------------------------------------------------------------------------------------
+        // Counting
+        // ---------------------------------------------------------------------------------------
+
+        /**
+         * How many views on screen have this text.
+         *
+         * ```kotlin
+         * assertEquals(3, countOf("OPEN"))
+         * ```
+         * @param text the text to count
+         * @param wait how long you want to wait for the first of them (Default is 5000 milliseconds)
+         */
+        fun countOf(text: String, wait: Long = DEFAULT_WAITING_TIME): Int =
+            findEvery(By.text(text), wait).size
+
+        /**
+         * How many views on screen have this content description. @see countOf
+         * @param text the content description to count
+         * @param wait how long you want to wait for the first of them (Default is 5000 milliseconds)
+         */
+        fun countOfDescription(text: String, wait: Long = DEFAULT_WAITING_TIME): Int =
+            findEvery(By.desc(text), wait).size
+
+        /**
+         * How many views on screen have this Compose testTag (or View resource id). @see countOf
+         * @param tag the testTag to count
+         * @param wait how long you want to wait for the first of them (Default is 5000 milliseconds)
+         */
+        fun countOfTag(tag: String, wait: Long = DEFAULT_WAITING_TIME): Int =
+            findEvery(By.res(tag), wait).size
+
+        /**
+         * How many views on screen the selector matches. @see countOf
+         * @param selector what the views have to match
+         * @param wait how long you want to wait for the first of them (Default is 5000 milliseconds)
+         */
+        fun countOf(selector: BySelector, wait: Long = DEFAULT_WAITING_TIME): Int =
+            findEvery(selector, wait).size
+
+        /**
+         * Assert that exactly this many views on screen have this text.
+         *
+         * Counting nothing costs the whole wait, since there is no first match to come back on —
+         * pass a short one when the expected count is zero.
+         * @param text the text to count
+         * @param expected how many there should be
+         * @param wait how long you want to wait for the first of them (Default is 5000 milliseconds)
+         */
+        fun assertCount(text: String, expected: Int, wait: Long = DEFAULT_WAITING_TIME) {
+            val found = countOf(text, if (expected == 0) QUICK_WAITING_TIME else wait)
+            if (found != expected) {
+                throw AssertionError(
+                    "There should be $expected views with the text \"$text\", but there " +
+                        "${if (found == 1) "was 1" else "were $found"}." + ScreenReport.explain(text)
+                )
+            }
+        }
+
+        /**
+         * Assert that exactly this many views on screen have this Compose testTag.
+         * @see assertCount
+         * @param tag the testTag to count
+         * @param expected how many there should be
+         * @param wait how long you want to wait for the first of them (Default is 5000 milliseconds)
+         */
+        fun assertTagCount(tag: String, expected: Int, wait: Long = DEFAULT_WAITING_TIME) {
+            val found = countOfTag(tag, if (expected == 0) QUICK_WAITING_TIME else wait)
+            if (found != expected) {
+                throw AssertionError(
+                    "There should be $expected views tagged $tag, but there " +
+                        "${if (found == 1) "was 1" else "were $found"}." + ScreenReport.explain(tag)
+                )
+            }
+        }
+
+        // ---------------------------------------------------------------------------------------
+        // Reading text
+        // ---------------------------------------------------------------------------------------
+
+        /**
+         * The text held by the view with this Compose testTag (or View resource id).
+         *
+         * What a label *says* rather than whether it is there — a total, a name, a formatted
+         * price. Null when nothing matched, like the finders.
+         *
+         * ```kotlin
+         * assertEquals("R$ 12,00", textOfTag("totalLabel"))
+         * ```
+         * @param tag the testTag of the view to read
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         */
+        fun textOfTag(tag: String, wait: Long = DEFAULT_WAITING_TIME): String? =
+            findFirst(By.res(tag), wait)?.safeText()
+
+        /**
+         * The text held by the view with this content description. @see textOfTag
+         * @param text the content description of the view to read
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         */
+        fun textOfDescription(text: String, wait: Long = DEFAULT_WAITING_TIME): String? =
+            findFirst(By.desc(text), wait)?.safeText()
+
+        /**
+         * The text held by the first view the selector matches. @see textOfTag
+         * @param selector what the view has to match
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         */
+        fun textOf(selector: BySelector, wait: Long = DEFAULT_WAITING_TIME): String? =
+            findFirst(selector, wait)?.safeText()
+
+        /**
+         * Assert that the view with this Compose testTag holds exactly this text.
+         *
+         * Fails as "not visible" when nothing carries the tag, so a typo in the tag does not read
+         * as a wrong value.
+         * @param tag the testTag of the view to read
+         * @param expected the text it should hold
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         */
+        fun assertTagTextEquals(tag: String, expected: String, wait: Long = DEFAULT_WAITING_TIME) {
+            val actual = requireVisible(By.res(tag), wait, "A view tagged $tag").safeText()
+            if (actual != expected) {
+                throw AssertionError(
+                    "The view tagged $tag should read \"$expected\", but it reads \"$actual\""
+                )
+            }
+        }
+
+        /**
+         * Assert that the view with this Compose testTag holds a text containing this one.
+         * @see assertTagTextEquals
+         * @param tag the testTag of the view to read
+         * @param expected the text it should contain
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         */
+        fun assertTagTextContains(tag: String, expected: String, wait: Long = DEFAULT_WAITING_TIME) {
+            val actual = requireVisible(By.res(tag), wait, "A view tagged $tag").safeText()
+            if (!actual.contains(expected)) {
+                throw AssertionError(
+                    "The view tagged $tag should contain \"$expected\", but it reads \"$actual\""
+                )
+            }
+        }
+
+        /**
          * The first view the selector matches, waiting for it to show up
          * @param selector what the view has to match
          * @param wait how long to wait for it before giving up, in milliseconds
          */
         private fun findFirst(selector: BySelector, wait: Long): UiObject2? =
-            device().wait(Until.findObject(selector), wait)
+            device().wait(Until.findObject(scoped(selector)), wait)
 
         /**
          * Whether anything matching the selector shows up before the wait runs out.
@@ -281,7 +490,103 @@ class Kobaia<T : Activity>(
          * @param wait how long to wait for it before giving up, in milliseconds
          */
         private fun isShowing(selector: BySelector, wait: Long): Boolean =
-            device().wait(Until.hasObject(selector), wait) == true
+            device().wait(Until.hasObject(scoped(selector)), wait) == true
+
+        // ---------------------------------------------------------------------------------------
+        // Scoping
+        // ---------------------------------------------------------------------------------------
+
+        /**
+         * The container the current [within] block narrowed the search to, if there is one.
+         *
+         * Held per thread rather than in a plain field because a test runs on the instrumentation
+         * thread while the app runs on its own, and a scope that leaked between them would silently
+         * narrow a search some other test made.
+         */
+        private val currentScope = ThreadLocal<BySelector?>()
+
+        /**
+         * A selector narrowed to the container of the enclosing [within] block, or unchanged when
+         * there is none. Every finder passes through here, which is what makes the scope apply to
+         * all of them at once instead of to a handful that remembered to ask.
+         */
+        private fun scoped(selector: BySelector): BySelector =
+            currentScope.get()?.let { selector.hasAncestor(it) } ?: selector
+
+        /**
+         * Narrow every search inside the block to the descendants of one container.
+         *
+         * A row in a list repeats its labels — every row has its own `OPEN`, and `click("OPEN")`
+         * clicks all of them. Naming the row first is what makes one of them addressable:
+         *
+         * ```kotlin
+         * withinTag("item3") {
+         *     assertVisible("Kobaia")
+         *     click("OPEN")
+         * }
+         * ```
+         *
+         * Blocks nest, and the inner container is required to be inside the outer one. Scrolling
+         * and swiping narrow too, so a horizontal carousel above a vertical list can be turned by
+         * naming it — outside a block they act on the first scrollable on screen, which is
+         * whichever one happens to come first in the tree.
+         *
+         * The container itself is **not** in scope, only what is under it: a scope is a place to
+         * look inside, so `withinTag("item3") { assertTagVisible("item3") }` finds nothing.
+         *
+         * @param tag the testTag (or View resource id) of the container to search inside
+         * @param block the interactions to run against that container only
+         * @return whatever the block returns
+         */
+        fun <R> withinTag(tag: String, block: () -> R): R = withinSelector(By.res(tag), block)
+
+        /**
+         * Narrow every search inside the block to the descendants of the view with this text.
+         * @see withinTag
+         * @param text the text of the container to search inside
+         * @param block the interactions to run against that container only
+         * @return whatever the block returns
+         */
+        fun <R> within(text: String, block: () -> R): R = withinSelector(By.text(text), block)
+
+        /**
+         * Narrow every search inside the block to the descendants of the view with this content
+         * description.
+         * @see withinTag
+         * @param text the content description of the container to search inside
+         * @param block the interactions to run against that container only
+         * @return whatever the block returns
+         */
+        fun <R> withinDescription(text: String, block: () -> R): R =
+            withinSelector(By.desc(text), block)
+
+        /**
+         * Narrow every search inside the block to the descendants of whatever the selector matches.
+         * @see withinTag
+         * @param container what the container has to match
+         * @param block the interactions to run against that container only
+         * @return whatever the block returns
+         */
+        fun <R> within(container: BySelector, block: () -> R): R = withinSelector(container, block)
+
+        /**
+         * Run a block with the search narrowed to a container, and put the previous scope back
+         * afterwards — including when the block throws, so a failing assertion inside a `within`
+         * does not leave every later test in the class searching inside a row that is long gone.
+         * @param container what the container has to match
+         * @param block what to run inside it
+         */
+        private fun <R> withinSelector(container: BySelector, block: () -> R): R {
+            val enclosing = currentScope.get()
+            // Nested blocks compose: the inner container has to be inside the outer one, or
+            // `withinTag("item3") { withinTag("row") { … } }` would match a row in any item.
+            currentScope.set(enclosing?.let { container.hasAncestor(it) } ?: container)
+            return try {
+                block()
+            } finally {
+                currentScope.set(enclosing)
+            }
+        }
 
         // ---------------------------------------------------------------------------------------
         // Checking
@@ -367,6 +672,17 @@ class Kobaia<T : Activity>(
         ): Boolean = isShowing(By.res(pattern), wait)
 
         /**
+         * Check if anything matching a selector you built yourself is visible on screen.
+         * @see find
+         * @param selector what the view has to match
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         */
+        fun isVisible(
+            selector: BySelector,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): Boolean = isShowing(selector, wait)
+
+        /**
          * Assert that a text is visible on screen, failing the test with a readable message if it
          * is not.
          * This method also waits for it for some milliseconds
@@ -424,6 +740,17 @@ class Kobaia<T : Activity>(
             text: String,
             wait: Long = DEFAULT_WAITING_TIME
         ) = assertShowing(By.desc(text), wait) { notFound("A view described as $text", wait, text) }
+
+        /**
+         * Assert that something matching a selector you built yourself is visible on screen.
+         * @see find
+         * @param selector what the view has to match
+         * @param wait how long you want to wait for it (Default is 5000 milliseconds)
+         */
+        fun assertVisible(
+            selector: BySelector,
+            wait: Long = DEFAULT_WAITING_TIME
+        ) = assertShowing(selector, wait) { notFound("A view matching $selector", wait, null) }
 
         /**
          * Assert that a text is **not** on screen.
@@ -533,7 +860,7 @@ class Kobaia<T : Activity>(
          * @param wait how long to give them to go, in milliseconds
          */
         private fun isGone(selector: BySelector, wait: Long): Boolean =
-            device().wait(Until.gone(selector), wait) == true
+            device().wait(Until.gone(scoped(selector)), wait) == true
 
         // ---------------------------------------------------------------------------------------
         // State
@@ -831,6 +1158,19 @@ class Kobaia<T : Activity>(
         ): Boolean = clickAll(By.textContains(text), wait)
 
         /**
+         * Click every view matching a selector you built yourself. This method won't fail your
+         * test if nothing is clicked
+         * @see find
+         * @param selector what the views have to match
+         * @param wait how long you want to wait for them (Default is 5000 milliseconds)
+         * @return whether anything was clicked at all
+         */
+        fun click(
+            selector: BySelector,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): Boolean = clickAll(selector, wait)
+
+        /**
          * Click every UiObject2 with the given content description. This is useful to search for
          * Images or EditTexts
          * This method won't fail your test if nothing is clicked
@@ -884,12 +1224,6 @@ class Kobaia<T : Activity>(
             wait: Long = DEFAULT_WAITING_TIME
         ): Boolean = clickAll(By.res(pattern), wait)
 
-        /**
-         * Click every view the selector matches, waiting for them to show up
-         * @param selector what the views have to match
-         * @param wait how long to wait for them before giving up, in milliseconds
-         * @return whether anything was clicked at all
-         */
         /**
          * Long click every UiObject2 with the given text. This method won't fail your test if
          * nothing is clicked
@@ -980,6 +1314,12 @@ class Kobaia<T : Activity>(
             return true
         }
 
+        /**
+         * Click every view the selector matches, waiting for them to show up
+         * @param selector what the views have to match
+         * @param wait how long to wait for them before giving up, in milliseconds
+         * @return whether anything was clicked at all
+         */
         private fun clickAll(selector: BySelector, wait: Long): Boolean =
             actOnAll(selector, wait, UiObject2::click)
 
@@ -1001,7 +1341,7 @@ class Kobaia<T : Activity>(
             wait: Long,
             act: (UiObject2) -> Unit
         ): Boolean {
-            val views = device().wait(Until.findObjects(selector), wait).orEmpty()
+            val views = device().wait(Until.findObjects(scoped(selector)), wait).orEmpty()
             var actedOnAnything = false
             views.forEach { view ->
                 try {
@@ -1180,91 +1520,110 @@ class Kobaia<T : Activity>(
          * Scroll the first scrollable view forward (RecyclerView, ListView, ScrollView, …) until a text
          * is visible.
          * @param text the text that you want to find
-         * @param maximumScrolls how many times it will swipe before giving up (Default: 10)
+         * @param maximumScrolls how many times it will swipe before giving up (Default: 20)
+         * @param direction which way to scroll looking for it (Default: Direction.DOWN)
          * @return the text view, or null if it was not reached
          */
         fun scrollTo(
             text: String,
-            maximumScrolls: Int = DEFAULT_MAXIMUM_SCROLLS
-        ): UiObject2? = scrollUntilFound(maximumScrolls) { find(text, QUICK_WAITING_TIME) }
+            maximumScrolls: Int = DEFAULT_MAXIMUM_SCROLLS,
+            direction: Direction = Direction.DOWN
+        ): UiObject2? = scrollUntilFound(maximumScrolls, direction) { find(text, QUICK_WAITING_TIME) }
 
         /**
          * Scroll the first scrollable view forward (RecyclerView, ListView, ScrollView, …) until a text
          * pattern is visible.
          * @param pattern the pattern that you want to find
-         * @param maximumScrolls how many times it will swipe before giving up (Default: 10)
+         * @param maximumScrolls how many times it will swipe before giving up (Default: 20)
+         * @param direction which way to scroll looking for it (Default: Direction.DOWN)
          * @return the text view, or null if it was not reached
          */
         fun scrollTo(
             pattern: Pattern,
-            maximumScrolls: Int = DEFAULT_MAXIMUM_SCROLLS
-        ): UiObject2? = scrollUntilFound(maximumScrolls) { find(pattern, QUICK_WAITING_TIME) }
+            maximumScrolls: Int = DEFAULT_MAXIMUM_SCROLLS,
+            direction: Direction = Direction.DOWN
+        ): UiObject2? = scrollUntilFound(maximumScrolls, direction) { find(pattern, QUICK_WAITING_TIME) }
 
         /**
          * Scroll the first scrollable view forward (RecyclerView, ListView, ScrollView, …) until a content
          * description is visible. This is useful to search for Images or EditTexts
          * @param text the description that you want to find
-         * @param maximumScrolls how many times it will swipe before giving up (Default: 10)
+         * @param maximumScrolls how many times it will swipe before giving up (Default: 20)
+         * @param direction which way to scroll looking for it (Default: Direction.DOWN)
          * @return the view, or null if it was not reached
          */
         fun scrollToDescription(
             text: String,
-            maximumScrolls: Int = DEFAULT_MAXIMUM_SCROLLS
-        ): UiObject2? = scrollUntilFound(maximumScrolls) { findDescription(text, QUICK_WAITING_TIME) }
+            maximumScrolls: Int = DEFAULT_MAXIMUM_SCROLLS,
+            direction: Direction = Direction.DOWN
+        ): UiObject2? =
+            scrollUntilFound(maximumScrolls, direction) { findDescription(text, QUICK_WAITING_TIME) }
 
         /**
          * Scroll the first scrollable view forward (RecyclerView, ListView, ScrollView, …) until a content
          * description matching the pattern is visible.
          * This is useful to search for Images or EditTexts
          * @param pattern the description pattern that you want to find
-         * @param maximumScrolls how many times it will swipe before giving up (Default: 10)
+         * @param maximumScrolls how many times it will swipe before giving up (Default: 20)
+         * @param direction which way to scroll looking for it (Default: Direction.DOWN)
          * @return the view, or null if it was not reached
          */
         fun scrollToDescription(
             pattern: Pattern,
-            maximumScrolls: Int = DEFAULT_MAXIMUM_SCROLLS
-        ): UiObject2? = scrollUntilFound(maximumScrolls) { findDescription(pattern, QUICK_WAITING_TIME) }
+            maximumScrolls: Int = DEFAULT_MAXIMUM_SCROLLS,
+            direction: Direction = Direction.DOWN
+        ): UiObject2? =
+            scrollUntilFound(maximumScrolls, direction) { findDescription(pattern, QUICK_WAITING_TIME) }
 
         /**
          * Scroll the first scrollable view forward (LazyColumn, RecyclerView, ListView, ScrollView, …)
          * until a Compose testTag (or View resource id) is visible.
          * @param tag the testTag that you want to find
-         * @param maximumScrolls how many times it will swipe before giving up (Default: 10)
+         * @param maximumScrolls how many times it will swipe before giving up (Default: 20)
+         * @param direction which way to scroll looking for it (Default: Direction.DOWN)
          * @return the view, or null if it was not reached
          */
         fun scrollToTag(
             tag: String,
-            maximumScrolls: Int = DEFAULT_MAXIMUM_SCROLLS
-        ): UiObject2? = scrollUntilFound(maximumScrolls) { findTag(tag, QUICK_WAITING_TIME) }
+            maximumScrolls: Int = DEFAULT_MAXIMUM_SCROLLS,
+            direction: Direction = Direction.DOWN
+        ): UiObject2? = scrollUntilFound(maximumScrolls, direction) { findTag(tag, QUICK_WAITING_TIME) }
 
         /**
          * Scroll the first scrollable view forward (LazyColumn, RecyclerView, ListView, ScrollView, …)
          * until a Compose testTag (or View resource id) matching the pattern is visible.
          * @param pattern the testTag pattern that you want to find
-         * @param maximumScrolls how many times it will swipe before giving up (Default: 10)
+         * @param maximumScrolls how many times it will swipe before giving up (Default: 20)
+         * @param direction which way to scroll looking for it (Default: Direction.DOWN)
          * @return the view, or null if it was not reached
          */
         fun scrollToTag(
             pattern: Pattern,
-            maximumScrolls: Int = DEFAULT_MAXIMUM_SCROLLS
-        ): UiObject2? = scrollUntilFound(maximumScrolls) { findTag(pattern, QUICK_WAITING_TIME) }
+            maximumScrolls: Int = DEFAULT_MAXIMUM_SCROLLS,
+            direction: Direction = Direction.DOWN
+        ): UiObject2? = scrollUntilFound(maximumScrolls, direction) { findTag(pattern, QUICK_WAITING_TIME) }
 
         /**
          * Swipe the first scrollable view forward until the target turns up, checking before
          * every swipe so that a target already on screen costs none.
          *
-         * It searches forward from wherever the list currently sits rather than rewinding to the
+         * It searches on from wherever the list currently sits rather than rewinding to the
          * top first, and stops as soon as the list says it cannot scroll any further, so the cost
          * of a miss is bounded by [maximumScrolls] swipes.
          * @param maximumScrolls how many times to swipe before giving up
+         * @param direction which way to scroll looking for the target
          * @param find how the target is looked up between swipes
          */
-        private fun scrollUntilFound(maximumScrolls: Int, find: () -> UiObject2?): UiObject2? {
+        private fun scrollUntilFound(
+            maximumScrolls: Int,
+            direction: Direction = Direction.DOWN,
+            find: () -> UiObject2?
+        ): UiObject2? {
             for (swipe in 1..maximumScrolls.coerceAtLeast(1)) {
                 find()?.let { return it }
                 val scrollableView =
                     findFirst(By.scrollable(true), DEFAULT_WAITING_TIME) ?: return null
-                if (!scrollableView.scroll(Direction.DOWN, SCROLL_PERCENTAGE)) break
+                if (!scrollableView.scroll(direction, SCROLL_PERCENTAGE)) break
             }
             return find()
         }

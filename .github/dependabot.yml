@@ -1,0 +1,23 @@
+version: 2
+
+updates:
+  # The library pins AGP, Gradle plugins and the androidx.test stack as hardcoded strings across
+  # build.gradle files. Dependabot reads those directly, which is what keeps a test library from
+  # quietly falling behind the test runtime its consumers are on.
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      androidx-test:
+        patterns:
+          - androidx.test*
+      compose:
+        patterns:
+          - androidx.compose*
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

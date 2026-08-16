@@ -15,9 +15,11 @@ Requires JDK 17 (the build pins `jvmTarget`/`sourceCompatibility` to 17; a newer
 fail).
 
 ```bash
-./gradlew build                              # assemble + lint, both modules
+./gradlew build                              # assemble + lint + apiCheck, both modules
 ./gradlew :kobaia:assembleDebug              # the library alone
 ./gradlew lint                               # lint only
+./gradlew :kobaia:apiDump                    # re-record the public API after changing it
+./gradlew :kobaia:dokkaJavadoc               # render the KDoc, as the javadoc jar ships it
 ```
 
 There are no host-side unit tests, and there is no point adding any: every interaction goes
@@ -44,7 +46,7 @@ style:
 
 ## Architecture
 
-The library is four files in `kobaia/src/main/java/com/araujo/jordan/kobaia/`, and the split
+The library is five files in `kobaia/src/main/java/com/araujo/jordan/kobaia/`, and the split
 between them is the thing to understand before editing.
 
 **`Kobaia.kt` — the companion object is the implementation.** Every interaction is a function on
@@ -68,6 +70,22 @@ surfaces in the accessibility tree as a resource id once the app opts in with
 the library: UIAutomator reads the accessibility tree, so a `Text` and a `TextView` look the same
 from here. The Compose dependencies in `sample/build.gradle` (and the Compose compiler plugin in
 the root build file) exist only so the sample can prove it.
+
+**Four funnels, and scoping lives in them.** `findFirst`, `isShowing`, `isGone` and `actOnAll` are
+the only places a `BySelector` reaches UIAutomator, which is what lets `within`/`withinTag` narrow
+*every* interaction at once from one `ThreadLocal`: `scoped()` is applied in those four and nowhere
+else. Anything new that talks to `device()` with a selector directly is a bug — it will silently
+ignore the enclosing `within` block. The scope is thread-local because the test runs on the
+instrumentation thread while the app runs on its own, and it is restored in a `finally`, so a
+failing assertion inside a block does not leave the rest of the class searching inside a dead row.
+
+**`KobaiaDiagnostics.kt` — the failure path, and only the failure path.** `ScreenReport.explain`
+builds the "On screen now / Did you mean" half of an assertion message. Two things must stay true:
+it is reached only through a **by-name** message argument (`assertShowing(…) { … }`), so a passing
+assertion never builds it; and it swallows every `Throwable`, because a diagnostic that throws
+replaces the assertion the test actually failed on. It reads one `dumpWindowHierarchy` rather than
+walking `UiObject2`s — per the idle ceiling below, a hundred `getText()` calls is a hundred idle
+waits on exactly the busy screen that made the test fail.
 
 **`KobaiaInteractions.kt` — one declaration serves both call styles.** Each interaction appears
 once more here as an `infix fun` that delegates to the companion. A Kotlin infix member is also
@@ -112,6 +130,16 @@ counterpart. Keep both toolkits represented — that the same test drives either
 a `ReplaceWith`, so existing test suites keep compiling and the IDE quick fix migrates them. See the
 block at the end of `Kobaia`'s companion object. That annotation is the whole migration story — the
 README documents the API as it is now, and deliberately does not list the old names.
+
+**`kobaia/api/kobaia.api` is checked in, and `build` verifies it.** `apiCheck` fails on any drift in
+the public surface, so adding or changing an interaction means running `./gradlew :kobaia:apiDump`
+and committing the result in the same commit — that diff is the review moment the rule above needs.
+It is hand-rolled in `kobaia/api-guard.gradle` rather than binary-compatibility-validator, because
+that plugin registers its tasks off the Kotlin Gradle plugin and this build has none: AGP 9 compiles
+Kotlin itself, and applying `org.jetbrains.kotlin.android` alongside it fails outright. Dokka needs
+its source set declared by hand for the same reason. Kotlin `internal` compiles to JVM `public` and
+`javap` cannot tell them apart, so **a new internal top-level declaration has to be added to the
+`internalTypes` list** in that script, or it shows up in the dump as if it were API.
 
 **Names describe the action, not the mechanism** — `click`, not `textClick`; `find`, not `byText`.
 The same name has to read well both plainly and infix (`click("SKIP")` / `kobaia click "SKIP"`),
