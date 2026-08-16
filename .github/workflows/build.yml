@@ -103,7 +103,7 @@ jobs:
             exit ${TEST_RESULT:-0}
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: kobaia/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
