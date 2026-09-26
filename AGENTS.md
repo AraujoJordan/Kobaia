@@ -71,9 +71,9 @@ the library: UIAutomator reads the accessibility tree, so a `Text` and a `TextVi
 from here. The Compose dependencies in `sample/build.gradle` (and the Compose compiler plugin in
 the root build file) exist only so the sample can prove it.
 
-**Four funnels, and scoping lives in them.** `findFirst`, `isShowing`, `isGone` and `actOnAll` are
-the only places a `BySelector` reaches UIAutomator, which is what lets `within`/`withinTag` narrow
-*every* interaction at once from one `ThreadLocal`: `scoped()` is applied in those four and nowhere
+**Five funnels, and scoping lives in them.** `findFirst`, `isShowing`, `isGone`, `actOnAll` and
+`firstShowing` are the only places a `BySelector` reaches UIAutomator, which is what lets `within`/`withinTag` narrow
+*every* interaction at once from one `ThreadLocal`: `scoped()` is applied in those five and nowhere
 else. Anything new that talks to `device()` with a selector directly is a bug — it will silently
 ignore the enclosing `within` block. The scope is thread-local because the test runs on the
 instrumentation thread while the app runs on its own, and it is restored in a `finally`, so a

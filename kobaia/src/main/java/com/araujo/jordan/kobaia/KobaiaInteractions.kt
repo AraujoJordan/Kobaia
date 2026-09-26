@@ -572,6 +572,14 @@ interface KobaiaInteractions {
     /** Click every view matching a selector of your own */
     infix fun click(selector: BySelector): Boolean = Kobaia.click(selector)
 
+    /** Click whichever of these shows up first, as soon as it does: `clickFirstOf(By.text("OK"), By.text("Confirm"))` */
+    fun clickFirstOf(vararg selectors: BySelector, wait: Long = Kobaia.DEFAULT_WAITING_TIME): Int =
+        Kobaia.clickFirstOf(*selectors, wait = wait)
+
+    /** Which of these shows up first, returning as soon as one does */
+    fun firstVisibleOf(vararg selectors: BySelector, wait: Long = Kobaia.DEFAULT_WAITING_TIME): Int =
+        Kobaia.firstVisibleOf(*selectors, wait = wait)
+
     /** Whether anything matching a selector of your own is on screen */
     infix fun isVisible(selector: BySelector): Boolean = Kobaia.isVisible(selector)
 

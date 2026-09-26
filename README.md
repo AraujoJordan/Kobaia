@@ -38,7 +38,7 @@ fun testApp() = launch<SplashActivity> {
 ## 📦 Download
 
 ```gradle
-androidTestImplementation 'io.github.araujojordan:kobaia:0.6.0'
+androidTestImplementation 'io.github.araujojordan:kobaia:0.7.0'
 ```
 
 ---
@@ -303,6 +303,10 @@ rotateNatural()
 waitFor(2000)                               // pause for specified milliseconds
 waitForStable()                             // wait until screen stops changing (up to default wait)
 waitForStable(wait = 1500)
+waitForStable(wait = 1500, stableFor = 150)  // count 150 ms of stillness as settled
+
+clickFirstOf(By.text("OK"), By.text("Confirm"))   // click whichever shows up first, as soon as it does
+firstVisibleOf(By.text("Error"), By.res("home"))  // index of whichever shows up first, -1 if none
 ```
 
 ---

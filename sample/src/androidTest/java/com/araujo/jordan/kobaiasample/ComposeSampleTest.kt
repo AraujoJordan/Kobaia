@@ -161,6 +161,24 @@ class ComposeSampleTest {
     }
 
     /**
+     * Racing several selectors: the one that is on screen wins without the missing one costing its
+     * wait first, and a race nobody wins reports -1 instead of failing.
+     */
+    @Test
+    fun clicksWhicheverShowsUpFirst() = launch<ComposeSampleActivity> {
+        assertNotNull("row 5 should be reachable", scrollToTag("row5"))
+
+        val missing = By.text("thereIsNoSuchText")
+        val openInRowFive = By.text("OPEN").hasAncestor(By.res("row5"))
+        assertEquals(-1, firstVisibleOf(missing, wait = Kobaia.QUICK_WAITING_TIME))
+        assertEquals(1, firstVisibleOf(missing, openInRowFive))
+        assertEquals(1, clickFirstOf(missing, openInRowFive))
+        assertVisible("Item #5 opened")
+
+        assertTrue("the screen should settle", Kobaia.waitForStable(wait = 3000, stableFor = 150))
+    }
+
+    /**
      * Pinches and the device helpers. There is nothing on this screen that zooms, so the pinch
      * asserts only that the gesture was delivered — the return is `false` on a miss instead.
      */

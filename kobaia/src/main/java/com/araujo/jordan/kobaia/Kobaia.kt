@@ -123,6 +123,12 @@ class Kobaia<T : Activity>(
         private const val STABLE_INTERVAL = 500L
 
         /**
+         * How often [clickFirstOf] and [firstVisibleOf] look again, the same interval UIAutomator's
+         * own `wait` polls at.
+         */
+        private const val POLL_INTERVAL = 100L
+
+        /**
          * How long a rotation gets to finish rebuilding the screen before the test carries on
          * regardless. @see rotateLandscape
          */
@@ -491,6 +497,28 @@ class Kobaia<T : Activity>(
          */
         private fun isShowing(selector: BySelector, wait: Long): Boolean =
             device().wait(Until.hasObject(scoped(selector)), wait) == true
+
+        /**
+         * The first of several selectors to match anything, and what it matched, polling all of
+         * them together. `Until` can wait for one selector at a time only, so this polls by hand at
+         * the same interval UIAutomator uses, and checks once more when the wait runs out.
+         * @param selectors what the view has to match, in order of preference within one poll
+         * @param wait how long to wait for any of them before giving up, in milliseconds
+         */
+        private fun firstShowing(
+            selectors: Array<out BySelector>,
+            wait: Long
+        ): Pair<Int, UiObject2>? {
+            val narrowed = selectors.map(::scoped)
+            val deadline = System.currentTimeMillis() + wait
+            while (true) {
+                narrowed.forEachIndexed { index, selector ->
+                    device().findObject(selector)?.let { return index to it }
+                }
+                if (System.currentTimeMillis() >= deadline) return null
+                KobaiaSleep.sleep(POLL_INTERVAL)
+            }
+        }
 
         // ---------------------------------------------------------------------------------------
         // Scoping
@@ -1169,6 +1197,47 @@ class Kobaia<T : Activity>(
             selector: BySelector,
             wait: Long = DEFAULT_WAITING_TIME
         ): Boolean = clickAll(selector, wait)
+
+        /**
+         * Click whichever of several views shows up first, as soon as it does. This method won't
+         * fail your test if none of them shows up
+         *
+         * Trying `click(a, wait) || click(b, wait)` charges the full wait for `a` before `b` is
+         * even looked at. This looks for all of them on every poll instead, so a dialog that can
+         * say either `OK` or `Confirm` is answered the moment either one is drawn:
+         *
+         * ```kotlin
+         * clickFirstOf(By.text("OK"), By.text("Confirm"))
+         * ```
+         * @param selectors what the view has to match, in order of preference within one poll
+         * @param wait how long you want to wait for any of them (Default is 5000 milliseconds)
+         * @return the index of the selector that was clicked, or -1 if none showed up
+         */
+        fun clickFirstOf(
+            vararg selectors: BySelector,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): Int {
+            val (index, view) = firstShowing(selectors, wait) ?: return -1
+            return try {
+                view.click()
+                index
+            } catch (viewIsGone: StaleObjectException) {
+                Log.d(KOBAIA_TAG, "The view matching ${selectors[index]} went away before the click")
+                -1
+            }
+        }
+
+        /**
+         * Which of several views shows up first, returning as soon as one does
+         * @see clickFirstOf
+         * @param selectors what the view has to match, in order of preference within one poll
+         * @param wait how long you want to wait for any of them (Default is 5000 milliseconds)
+         * @return the index of the first selector that matched, or -1 if none showed up
+         */
+        fun firstVisibleOf(
+            vararg selectors: BySelector,
+            wait: Long = DEFAULT_WAITING_TIME
+        ): Int = firstShowing(selectors, wait)?.first ?: -1
 
         /**
          * Click every UiObject2 with the given content description. This is useful to search for
@@ -1853,9 +1922,22 @@ class Kobaia<T : Activity>(
          * @return whether the screen settled, rather than running out of time
          */
         fun waitForStable(wait: Long = DEFAULT_WAITING_TIME): Boolean =
+            waitForStable(wait, stableFor = STABLE_INTERVAL)
+
+        /**
+         * Wait for the screen to stop changing, counting it settled after it has held still for
+         * [stableFor] rather than the default 500 ms. A shorter hold returns sooner on a screen
+         * that is already still, at the risk of calling a pause between two frames of the same
+         * change the end of it.
+         * @see waitForStable
+         * @param wait how long to give the screen to settle before giving up, in milliseconds
+         * @param stableFor how long the screen has to hold still to count as settled, in milliseconds
+         * @return whether the screen settled, rather than running out of time
+         */
+        fun waitForStable(wait: Long, stableFor: Long): Boolean =
             !device().waitForStableInActiveWindow(
                 stableTimeoutMs = wait,
-                stableIntervalMs = STABLE_INTERVAL,
+                stableIntervalMs = stableFor,
                 // Comparing screenshots as well would mean a cursor blinking in a corner counts as
                 // a screen still in motion, and nothing on Compose would ever be stable.
                 requireStableScreenshot = false
